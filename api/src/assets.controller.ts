@@ -7,17 +7,18 @@ import { PrismaService } from './prisma.service';
 import { config, now, toNumber } from './config';
 import { sha256 } from './security';
 import { StorageService, StoredObject } from './storage.service';
+import { AssetAccessService } from './asset-access.service';
 
 @Controller()
 export class AssetsController {
-  constructor(private readonly prisma: PrismaService, private readonly auth: AuthService, private readonly access: AccessService, private readonly storage: StorageService) {}
+  constructor(private readonly prisma: PrismaService, private readonly auth: AuthService, private readonly access: AccessService, private readonly storage: StorageService, private readonly assetAccess: AssetAccessService) {}
 
   @Post('api/assets')
   @HttpCode(200)
   async upload(@Req() req: Request, @Res({ passthrough: true }) _res: Response) {
     const { user } = await this.auth.requireReady(req);
     const mime = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
-    if (!config.allowedMime.includes(mime)) throw new UnsupportedMediaTypeException('unsupported_type');
+    if (mime === 'image/svg+xml' || !config.allowedMime.includes(mime)) throw new UnsupportedMediaTypeException('unsupported_type');
     const body = Buffer.isBuffer(req.body) ? req.body : Buffer.from(req.body || '');
     if (!body.length) throw new BadRequestException('empty');
     if (body.length > config.maxUploadMB * 1_048_576) throw new BadRequestException('too_large');
@@ -59,6 +60,7 @@ export class AssetsController {
     await this.auth.requireReady(req);
     const asset = await this.prisma.asset.findUnique({ where: { id } });
     if (!asset) throw new NotFoundException('not_found');
+    if (!(await this.assetAccess.canRead(user, asset))) throw new ForbiddenException('permission_denied');
     const object = await this.storage.openAsset(asset.id, String(req.headers.range || '') || undefined, asset.remotePath);
     if (!object) throw new NotFoundException('not_found');
     const inline = /^(image\/(png|jpeg|gif|webp)|application\/pdf|video\/)/.test(asset.mime);
