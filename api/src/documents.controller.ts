@@ -60,7 +60,7 @@ export class DocumentsController {
     const visit = (node: unknown, level: number) => {
       if (level > 32 || node == null) return;
       if (typeof node === 'string') {
-        const match = node.match(/(?:^|\\/_blob\\/)([a-f0-9]{32})(?:$|[?#])/);
+        const match = node.match(/(?:^|\/_blob\/)([a-f0-9]{32})(?:$|[?#])/);
         if (match) found.add(match[1]);
       } else if (Array.isArray(node)) {
         for (const item of node) visit(item, level + 1);
