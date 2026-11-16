@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Asset, User } from './generated/prisma/client';
+import { Asset, User } from '@terzo/database';
 import { AccessService } from './access.service';
 import { PrismaService } from './prisma.service';
 

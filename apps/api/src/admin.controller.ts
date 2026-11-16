@@ -1,6 +1,6 @@
 import { BadRequestException, Body, ConflictException, Controller, ForbiddenException, Get, HttpCode, NotFoundException, Param, Patch, Post, Req } from '@nestjs/common';
 import { Request } from 'express';
-import { Prisma, User } from './generated/prisma/client';
+import { Prisma, User } from '@terzo/database';
 import { randomBytes } from 'node:crypto';
 import { AuthService } from './auth.service';
 import { AccessService } from './access.service';

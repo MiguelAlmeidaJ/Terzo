@@ -1,6 +1,6 @@
 import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Request, Response } from 'express';
-import { User } from './generated/prisma/client';
+import { User } from '@terzo/database';
 import { randomBytes } from 'node:crypto';
 import { config, now } from './config';
 import { PrismaService } from './prisma.service';

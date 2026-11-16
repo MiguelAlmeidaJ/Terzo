@@ -1,6 +1,6 @@
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Post, Query, Req, Res, ForbiddenException } from '@nestjs/common';
 import { Request, Response } from 'express';
-import { Prisma } from './generated/prisma/client';
+import { Prisma } from '@terzo/database';
 import { AccessService, segmentPattern } from './access.service';
 import { AuthService } from './auth.service';
 import { EventsService } from './events.service';
