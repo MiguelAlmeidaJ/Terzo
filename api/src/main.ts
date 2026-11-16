@@ -21,7 +21,21 @@ async function bootstrap() {
   server.use('/api/assets', (req: Request, res: Response, next: NextFunction) => req.method === 'POST' ? express.raw({ type: '*/*', limit: `${config.maxUploadMB}mb` })(req, res, next) : next());
   server.use(express.json({ limit: '1.5mb' }));
   server.use((req: Request, res: Response, next: NextFunction) => {
-    if (req.path.startsWith('/api/') && req.method !== 'GET' && req.headers['x-terzo'] !== '1') return res.status(403).json({ error: 'csrf' });
+    if (req.path.startsWith('/api/') && !['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+      if (req.headers['x-terzo'] !== '1' || req.headers['sec-fetch-site'] === 'cross-site')
+        return res.status(403).json({ error: 'csrf' });
+      const origin = req.headers.origin;
+      if (origin) {
+        const host = req.headers.host;
+        const scheme = config.trustProxy
+          ? String(req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http')).split(',')[0].trim()
+          : (req.secure ? 'https' : 'http');
+        try {
+          if (!host || new URL(origin).origin !== `${scheme}://${host}`)
+            return res.status(403).json({ error: 'csrf' });
+        } catch { return res.status(403).json({ error: 'csrf' }); }
+      }
+    }
     next();
   });
   app.useGlobalFilters(new HttpExceptionFilter());
