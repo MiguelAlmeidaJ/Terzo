@@ -27,6 +27,7 @@ export class DocumentsController {
     if (!this.access.can(user, `${body.coll}/${body.id}`, 'write')) throw new ForbiddenException('permission_denied');
     if (JSON.stringify(body.data).length > 1024 * 1024) throw new BadRequestException('too_large');
     await this.validateSensitiveWrite(user, body.coll, body.id, body.data);
+    await this.validateNewAssetReferences(user, body.coll, body.id, body.data);
     await this.prisma.document.upsert({
       where: { collection_id: { collection: body.coll, id: body.id } },
       create: { collection: body.coll, id: body.id, data: body.data as Prisma.InputJsonValue, updatedAt: now(), updatedBy: user.id },
@@ -52,6 +53,37 @@ export class DocumentsController {
     if (typeof (deletedMember?.data as any)?.accountId === 'string')
       this.events.kick((deletedMember!.data as any).accountId);
     this.events.broadcast(body.coll, body.id, null); return { ok: true };
+  }
+
+  private assetReferences(value: unknown, depth = 0): Set<string> {
+    const found = new Set<string>();
+    const visit = (node: unknown, level: number) => {
+      if (level > 32 || node == null) return;
+      if (typeof node === 'string') {
+        const match = node.match(/(?:^|\\/_blob\\/)([a-f0-9]{32})(?:$|[?#])/);
+        if (match) found.add(match[1]);
+      } else if (Array.isArray(node)) {
+        for (const item of node) visit(item, level + 1);
+      } else if (typeof node === 'object') {
+        for (const item of Object.values(node as Record<string, unknown>)) visit(item, level + 1);
+      }
+    };
+    visit(value, depth);
+    return found;
+  }
+
+  private async validateNewAssetReferences(user: any, collection: string, id: string, data: unknown) {
+    if (this.access.level(user) >= 3) return;
+    const proposed = this.assetReferences(data);
+    if (!proposed.size) return;
+    const previous = await this.prisma.document.findUnique({ where: { collection_id: { collection, id } } });
+    const known = this.assetReferences(previous?.data);
+    const added = [...proposed].filter((assetId) => !known.has(assetId));
+    if (!added.length) return;
+    const assets = await this.prisma.asset.findMany({
+      where: { id: { in: added } }, select: { id: true, owner: true },
+    });
+    if (assets.some((asset) => asset.owner !== user.id)) throw new ForbiddenException('permission_denied');
   }
 
   private async validateSensitiveWrite(user: any, collection: string, id: string, data: Record<string, unknown>) {
