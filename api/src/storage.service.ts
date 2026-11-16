@@ -263,10 +263,17 @@ export class StorageService {
     let lastError: unknown;
     for (let attempt = 0; attempt <= config.nextcloud.retries; attempt++) {
       const started = Date.now();
+      const timeoutController = new AbortController();
+      const timeoutHandle = setTimeout(() => {
+        timeoutController.abort(new DOMException('Nextcloud request timed out.', 'TimeoutError'));
+      }, timeout);
+      const signal = init.signal
+        ? AbortSignal.any([init.signal, timeoutController.signal])
+        : timeoutController.signal;
       this.metrics.requests++;
       try {
         const response = await fetch(this.remoteUrl(remotePath), {
-          ...init, redirect: 'manual', signal: AbortSignal.timeout(timeout),
+          ...init, redirect: 'manual', signal,
           headers: { Authorization: `Basic ${Buffer.from(`${config.nextcloud.username}:${config.nextcloud.appPassword}`).toString('base64')}`, ...(init.headers || {}) },
         });
         this.metrics.lastLatencyMs = Date.now() - started;
@@ -283,6 +290,8 @@ export class StorageService {
         lastError = new NextcloudRequestError(timeoutError ? 'Tempo limite excedido ao acessar o Nextcloud.' : 'Nextcloud indisponível.', timeoutError ? 'timeout' : 'unavailable');
         if (timeoutError) this.metrics.timeouts++;
         if (!retryableMethod || attempt >= config.nextcloud.retries) break;
+      } finally {
+        clearTimeout(timeoutHandle);
       }
       this.metrics.retries++;
       await new Promise((resolve) => setTimeout(resolve, Math.min(200 * 2 ** attempt, 1_500)));
