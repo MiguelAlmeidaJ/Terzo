@@ -113,16 +113,31 @@ test('disabled or mismatched team member is rejected by API guard', async () => 
 
 test('event-stream is closed when account is disabled in team directory', async () => {
   let ended = false;
+  let disabled = false;
   const prisma = {
-    session: { findUnique: async () => ({ user: member, ver: 1, expiresAt: BigInt(Date.now() + 60_000), lastSeen: BigInt(Date.now()) }) },
-    document: { findUnique: async () => ({ data: { accountId: 'u1', disabled: true } }) },
+    session: { findUnique: async () => ({ user: { ...member, status: 'active', sessionVersion: 1, mustChange: false }, ver: 1, expiresAt: BigInt(Date.now() + 60_000), lastSeen: BigInt(Date.now()) }) },
+    document: { findUnique: async () => ({ data: { accountId: 'u1', disabled } }) },
   };
   const events = new EventsService(prisma as any, access);
   try {
     events.add({ user: member, hash: 'hash', response: { write: () => {}, end: () => { ended = true; } } as any });
     await (events as any).keepAlive();
+    assert.equal(ended, false);
+    disabled = true;
+    await (events as any).keepAlive();
     assert.equal(ended, true);
   } finally {
     events.onModuleDestroy();
   }
+});
+
+
+test('disabling a member immediately kicks their live stream', async () => {
+  const db = { document: { upsert: async () => {} } };
+  const auth = { requireReady: async () => ({ user: owner }) };
+  const kicked: string[] = [];
+  const events = { broadcast: () => {}, kick: (id: string) => kicked.push(id) };
+  const controller = new DocumentsController(db as any, auth as any, access, events as any);
+  await controller.set({ coll: 'members', id: 'm1', data: { accountId: 'u1', disabled: true } }, {} as any);
+  assert.deepEqual(kicked, ['u1']);
 });
