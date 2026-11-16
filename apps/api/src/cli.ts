@@ -1,11 +1,11 @@
-import { PrismaClient, Prisma } from './generated/prisma/client';
+import { PrismaClient, Prisma } from '@terzo/database';
 import { randomBytes } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { config, now } from './config';
 import { hashPassword, temporaryPassword } from './security';
 import { StorageService } from './storage.service';
-import { createPostgresAdapter } from './database';
+import { createPostgresAdapter } from '@terzo/database';
 import { NextcloudReconciliationService } from './nextcloud-reconciliation.service';
 
 const prisma = new PrismaClient({ adapter: createPostgresAdapter() });
@@ -48,7 +48,7 @@ async function migrateNextcloud() {
   const storage = new StorageService();
   const reconciliation = new NextcloudReconciliationService(prisma as any, storage);
   const result = await reconciliation.reconcile({ dryRun: args.includes('--dry-run'), source: command === 'migrate-nextcloud' ? 'migration' : 'cli' });
-  const logo = await fs.readFile(path.resolve(__dirname, '..', '..', 'src', 'terzo_wm_dark.png'));
+  const logo = await fs.readFile(path.resolve(__dirname, '..', 'assets', 'brand.png'));
   if (!args.includes('--dry-run')) await storage.putBrand(logo);
   console.log(JSON.stringify(result, null, 2));
 }

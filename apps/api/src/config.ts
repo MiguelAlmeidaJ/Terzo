@@ -5,7 +5,7 @@ const env = process.env;
 export const config = {
   port: Number(env.PORT || 3001),
   host: env.HOST || '0.0.0.0',
-  dataDir: path.resolve(env.DATA_DIR || path.join(process.cwd(), 'data')),
+  dataDir: path.resolve(env.DATA_DIR || path.resolve(__dirname, '../../../data')),
   cookieSecure: env.COOKIE_SECURE ? env.COOKIE_SECURE !== 'false' : env.NODE_ENV === 'production',
   idleHours: Number(env.SESSION_IDLE_HOURS || 8),
   maxDays: Number(env.SESSION_MAX_DAYS || 7),

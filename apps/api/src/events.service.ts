@@ -1,6 +1,6 @@
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
 import { Response } from 'express';
-import { User } from './generated/prisma/client';
+import { User } from '@terzo/database';
 import { AccessService } from './access.service';
 import { PrismaService } from './prisma.service';
 import { config, now } from './config';
