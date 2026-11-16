@@ -20,7 +20,7 @@ export const config = {
     basePath: env.NEXTCLOUD_BASE_PATH || 'Terzo',
     systemFolder: env.NEXTCLOUD_SYSTEM_FOLDER || 'TERCEIRO ANDAR',
   },
-  allowedMime: (env.ALLOWED_MIME || 'image/png,image/jpeg,image/gif,image/webp,image/svg+xml,application/pdf,video/mp4,video/webm,text/plain,text/csv,text/markdown,application/json,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.openxmlformats-officedocument.presentationml.presentation')
+  allowedMime: (env.ALLOWED_MIME || 'image/png,image/jpeg,image/gif,image/webp,application/pdf,video/mp4,video/webm,text/plain,text/csv,text/markdown,application/json,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.openxmlformats-officedocument.presentationml.presentation')
     .split(',').map((value) => value.trim()).filter(Boolean),
 };
 
