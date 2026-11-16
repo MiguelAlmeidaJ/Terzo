@@ -49,20 +49,25 @@ export class DocumentsController {
   private async validateSensitiveWrite(user: any, collection: string, id: string, data: Record<string, unknown>) {
     if (this.access.level(user) >= 3) return;
     if (collection === 'access_req') {
-      if (id !== user.id || Object.keys(data).some((key) => !['name', 'email', 'at', 'lastAt'].includes(key))
+      if (id !== user.id || Object.keys(data).some((key) => !['name', 'email', 'at', 'lastAt', 'updatedAt', 'updatedBy', 'createdBy'].includes(key))
         || data.name !== user.name || data.email !== user.email
         || (data.at !== undefined && typeof data.at !== 'string')
-        || (data.lastAt !== undefined && typeof data.lastAt !== 'string'))
+        || (data.lastAt !== undefined && typeof data.lastAt !== 'string')
+        || (data.updatedBy !== undefined && data.updatedBy !== user.id)
+        || (data.createdBy !== undefined && data.createdBy !== user.id)
+        || (data.updatedAt !== undefined && (typeof data.updatedAt !== 'string' || Math.abs(Date.now() - Date.parse(data.updatedAt)) > 5 * 60_000)))
         throw new ForbiddenException('permission_denied');
     }
     if (collection === 'members') {
       if (id !== user.memberId) throw new ForbiddenException('permission_denied');
       const current = await this.prisma.document.findUnique({ where: { collection_id: { collection, id } } });
       if (!current || (current.data as any)?.accountId !== user.id) throw new ForbiddenException('permission_denied');
-      const { lastSeen: _oldSeen, ...before } = current.data as Record<string, unknown>;
-      const { lastSeen, ...after } = data;
+      const { lastSeen: _oldSeen, updatedAt: _oldUpdated, updatedBy: _oldBy, ...before } = current.data as Record<string, unknown>;
+      const { lastSeen, updatedAt, updatedBy, ...after } = data;
       const timestamp = typeof lastSeen === 'string' ? Date.parse(lastSeen) : NaN;
       if (JSON.stringify(before) !== JSON.stringify(after) ||
+        (updatedBy !== undefined && updatedBy !== user.id) ||
+        (updatedAt !== undefined && (typeof updatedAt !== 'string' || Math.abs(Date.now() - Date.parse(updatedAt)) > 5 * 60_000)) ||
         !Number.isFinite(timestamp) || Math.abs(Date.now() - timestamp) > 5 * 60_000)
         throw new ForbiddenException('permission_denied');
     }
