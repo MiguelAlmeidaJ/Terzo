@@ -33,7 +33,13 @@ export class EventsService implements OnModuleDestroy {
   private async keepAlive() {
     for (const client of this.clients) {
       const session = await this.prisma.session.findUnique({ where: { idHash: client.hash }, include: { user: true } });
-      if (!session || session.user.status !== 'active' || session.ver !== session.user.sessionVersion || now() > session.expiresAt || now() - session.lastSeen > BigInt(config.idleHours * 3_600_000) || session.user.mustChange) {
+      const profile = session?.user.role === 'member' && session.user.memberId
+        ? await this.prisma.document.findUnique({ where: { collection_id: { collection: 'members', id: session.user.memberId } } })
+        : null;
+      const memberData = profile?.data as any;
+      const memberDisabled = !!(session?.user.role === 'member' && session.user.memberId &&
+        (!memberData || memberData.disabled || memberData.accountId !== session.user.id));
+      if (memberDisabled || !session || session.user.status !== 'active' || session.ver !== session.user.sessionVersion || now() > session.expiresAt || now() - session.lastSeen > BigInt(config.idleHours * 3_600_000) || session.user.mustChange) {
         client.response.write('event: logout\ndata: {}\n\n'); client.response.end(); this.clients.delete(client);
       } else { client.user = session.user; client.response.write(': ping\n\n'); }
     }
