@@ -32,7 +32,10 @@ export class DocumentsController {
       create: { collection: body.coll, id: body.id, data: body.data as Prisma.InputJsonValue, updatedAt: now(), updatedBy: user.id },
       update: { data: body.data as Prisma.InputJsonValue, updatedAt: now(), updatedBy: user.id },
     });
-    this.events.broadcast(body.coll, body.id, body.data); return { ok: true };
+    this.events.broadcast(body.coll, body.id, body.data);
+    if (body.coll === 'members' && body.data.disabled && typeof body.data.accountId === 'string')
+      this.events.kick(body.data.accountId);
+    return { ok: true };
   }
 
   @Post('db/delete')
@@ -42,7 +45,12 @@ export class DocumentsController {
     if (!this.access.validCollection(body?.coll) || !segmentPattern.test(String(body?.id || ''))) throw new BadRequestException('invalid_argument');
     if (!this.access.can(user, `${body.coll}/${body.id}`, 'write')) throw new ForbiddenException('permission_denied');
     if (body.coll === 'members' && this.access.level(user) < 3) throw new ForbiddenException('permission_denied');
+    const deletedMember = body.coll === 'members'
+      ? await this.prisma.document.findUnique({ where: { collection_id: { collection: body.coll, id: body.id } } })
+      : null;
     await this.prisma.document.deleteMany({ where: { collection: body.coll, id: body.id } });
+    if (typeof (deletedMember?.data as any)?.accountId === 'string')
+      this.events.kick((deletedMember!.data as any).accountId);
     this.events.broadcast(body.coll, body.id, null); return { ok: true };
   }
 
@@ -55,7 +63,7 @@ export class DocumentsController {
         || (data.lastAt !== undefined && typeof data.lastAt !== 'string')
         || (data.updatedBy !== undefined && data.updatedBy !== user.id)
         || (data.createdBy !== undefined && data.createdBy !== user.id)
-        || (data.updatedAt !== undefined && (typeof data.updatedAt !== 'string' || Math.abs(Date.now() - Date.parse(data.updatedAt)) > 5 * 60_000)))
+        || (data.updatedAt !== undefined && (typeof data.updatedAt !== 'string' || !Number.isFinite(Date.parse(data.updatedAt)) || Math.abs(Date.now() - Date.parse(data.updatedAt)) > 5 * 60_000)))
         throw new ForbiddenException('permission_denied');
     }
     if (collection === 'members') {
@@ -67,7 +75,7 @@ export class DocumentsController {
       const timestamp = typeof lastSeen === 'string' ? Date.parse(lastSeen) : NaN;
       if (JSON.stringify(before) !== JSON.stringify(after) ||
         (updatedBy !== undefined && updatedBy !== user.id) ||
-        (updatedAt !== undefined && (typeof updatedAt !== 'string' || Math.abs(Date.now() - Date.parse(updatedAt)) > 5 * 60_000)) ||
+        (updatedAt !== undefined && (typeof updatedAt !== 'string' || !Number.isFinite(Date.parse(updatedAt)) || Math.abs(Date.now() - Date.parse(updatedAt)) > 5 * 60_000)) ||
         !Number.isFinite(timestamp) || Math.abs(Date.now() - timestamp) > 5 * 60_000)
         throw new ForbiddenException('permission_denied');
     }
