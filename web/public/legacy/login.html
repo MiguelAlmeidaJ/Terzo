@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Entrar · Terzo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+:root{--ink:#141414;--muted:#6b6b6b;--line:#e2e2e2;--accent:#e63946;--bg:#111;--card:#fff;--crit:#c62828;--ok:#2e7d32}
+*{box-sizing:border-box}
+body{margin:0;min-height:100dvh;display:grid;place-items:center;padding:24px 16px;font-family:Figtree,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:radial-gradient(1200px 600px at 20% 0%,#2a2a2a 0%,#111 60%);color:var(--ink)}
+.card{width:min(420px,100%);background:var(--card);border-radius:20px;padding:36px 32px;box-shadow:0 30px 80px rgba(0,0,0,.45);display:flex;flex-direction:column;gap:14px}
+.logo{height:44px;width:auto;align-self:flex-start;margin-bottom:6px}
+h1{margin:0;font-size:24px;letter-spacing:-.01em}
+p{margin:0;color:#333;font-size:15px;line-height:1.5}
+label{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600;color:#333}
+input{font:inherit;font-size:16px;padding:12px 14px;border:1px solid #cfcfcf;border-radius:12px;width:100%;background:#fff;color:var(--ink)}
+input:focus{outline:2px solid var(--ink);outline-offset:1px;border-color:var(--ink)}
+.pw{position:relative}.pw input{padding-right:84px}
+.pw button{position:absolute;right:6px;top:50%;transform:translateY(-50%);border:0;background:none;font:inherit;font-size:13px;font-weight:600;color:var(--muted);padding:8px 10px;cursor:pointer;border-radius:8px}
+.go{font:inherit;font-weight:700;font-size:16px;padding:13px;border:0;border-radius:12px;background:var(--accent);color:#fff;cursor:pointer;margin-top:4px}
+.go:disabled{opacity:.6;cursor:default}
+.msg{font-size:14px;padding:10px 12px;border-radius:10px;display:none}
+.msg.err{display:block;background:#fdecec;color:var(--crit)}.msg.info{display:block;background:#f2f2f2;color:#333}.msg.ok{display:block;background:#e8f5e9;color:var(--ok)}
+.small{font-size:12.5px;color:var(--muted)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+</style>
+</head>
+<body>
+<main class="card">
+ <img class="logo" src="/brand/logo" alt="Terzo · Agência Terceiro Andar">
+ <form id="login" novalidate>
+  <h1>Bem-vindo à Agência Terceiro Andar</h1>
+  <p style="margin:8px 0 14px">Acesse sua conta para acompanhar suas atividades e trabalhar na plataforma.</p>
+  <div class="msg" id="m1" role="alert"></div>
+  <div style="display:flex;flex-direction:column;gap:12px">
+   <label>Usuário<input id="u" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required></label>
+   <label>Senha<span class="pw"><input id="p" name="password" type="password" autocomplete="current-password" required><button type="button" data-show="p" aria-label="Mostrar senha">Mostrar</button></span></label>
+   <button class="go" id="b1" type="submit">Entrar</button>
+  </div>
+ </form>
+ <form id="change" novalidate hidden>
+  <h1>Defina a sua senha</h1>
+  <p style="margin:8px 0 14px" id="ctext">Por segurança, troque a senha provisória antes de continuar.</p>
+  <div class="msg" id="m2" role="alert"></div>
+  <div style="display:flex;flex-direction:column;gap:12px">
+   <label>Senha atual<span class="pw"><input id="c0" type="password" autocomplete="current-password" required><button type="button" data-show="c0" aria-label="Mostrar senha">Mostrar</button></span></label>
+   <label>Nova senha<span class="pw"><input id="c1" type="password" autocomplete="new-password" minlength="10" required><button type="button" data-show="c1" aria-label="Mostrar senha">Mostrar</button></span></label>
+   <label>Repita a nova senha<input id="c2" type="password" autocomplete="new-password" minlength="10" required></label>
+   <span class="small">Mínimo de 10 caracteres. Uma frase curta é mais fácil de lembrar e mais segura.</span>
+   <button class="go" id="b2" type="submit">Salvar e entrar</button>
+  </div>
+ </form>
+</main>
+<script>
+(function(){'use strict';
+var qs=new URLSearchParams(location.search);var $=function(id){return document.getElementById(id)};
+function msg(id,cls,t){var m=$(id);m.className='msg '+cls;m.textContent=t}
+function post(url,body){return fetch(url,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-Terzo':'1'},body:JSON.stringify(body)}).then(function(r){return r.json().catch(function(){return{}}).then(function(j){return{status:r.status,j:j}})})}
+document.addEventListener('click',function(e){var b=e.target.closest('[data-show]');if(!b)return;var i=$(b.dataset.show);var show=i.type==='password';i.type=show?'text':'password';b.textContent=show?'Ocultar':'Mostrar';b.setAttribute('aria-label',show?'Ocultar senha':'Mostrar senha')});
+function showChange(voluntary){$('login').hidden=true;$('change').hidden=false;if(voluntary){$('ctext').textContent='Troque a sua senha. As outras sessões abertas serão encerradas.'}$('c0').focus()}
+if(qs.get('expirada'))msg('m1','info','Sua sessão expirou. Entre novamente.');
+if(qs.get('trocar')){fetch('/api/auth/me',{credentials:'same-origin'}).then(function(r){if(r.ok)showChange(!!qs.get('voltar'))})}
+else fetch('/api/auth/me',{credentials:'same-origin'}).then(function(r){if(r.ok)return r.json().then(function(j){if(!j.mustChange)location.replace('/');else showChange(false)})});
+$('u').focus();
+$('login').addEventListener('submit',function(e){e.preventDefault();var u=$('u').value.trim(),p=$('p').value;if(!u||!p){msg('m1','err','Informe usuário e senha.');return}
+ $('b1').disabled=true;$('b1').textContent='Entrando…';
+ post('/api/auth/login',{username:u,password:p}).then(function(r){$('b1').disabled=false;$('b1').textContent='Entrar';
+  if(r.status===200){if(r.j.mustChange){$('c0').value=p;showChange(false);$('c1').focus()}else location.replace('/')}
+  else msg('m1','err',r.j.error||'Não foi possível entrar. Tente de novo.')}).catch(function(){$('b1').disabled=false;$('b1').textContent='Entrar';msg('m1','err','Sem conexão com o servidor.')})});
+$('change').addEventListener('submit',function(e){e.preventDefault();var a=$('c0').value,b=$('c1').value,c=$('c2').value;
+ if(b.length<10){msg('m2','err','A nova senha precisa ter pelo menos 10 caracteres.');return}if(b!==c){msg('m2','err','As duas senhas novas não são iguais.');return}
+ $('b2').disabled=true;post('/api/auth/password',{current:a,next:b}).then(function(r){$('b2').disabled=false;if(r.status===200){msg('m2','ok','Senha salva. Entrando…');setTimeout(function(){location.replace('/')},500)}else msg('m2','err',r.j.error||'Não foi possível salvar.')})});
+})();
+</script>
+</body>
+</html>

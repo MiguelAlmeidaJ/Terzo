@@ -1,0 +1,17 @@
+[
+ {"path":"process","write":"admin"},
+ {"path":"services","write":"admin"},
+ {"path":"objectives","write":"admin"},
+ {"path":"updates","read":"view","write":"admin"},
+ {"path":"updates/{self}","write":"interact"},
+ {"path":"acad_tracks","write":"admin"},
+ {"path":"acad_home","write":"admin"},
+ {"path":"acad_progress","read":"view","write":"owner"},
+ {"path":"acad_progress/{self}","write":"interact"},
+ {"path":"cm","read":"view","write":"owner"},
+ {"path":"cm/{self}","write":"interact"},
+ {"path":"cr","read":"view","write":"owner"},
+ {"path":"cr/{self}","write":"interact"},
+ {"path":"ck","read":"view","write":"owner"},
+ {"path":"ck/{self}","write":"interact"}
+]

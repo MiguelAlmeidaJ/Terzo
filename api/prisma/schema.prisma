@@ -1,0 +1,87 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id             String    @id
+  username       String    @unique
+  name           String
+  email          String    @default("")
+  passHash       String    @map("pass_hash")
+  role           String    @default("member")
+  status         String    @default("active")
+  mustChange     Boolean   @default(true) @map("must_change")
+  sessionVersion Int       @default(1) @map("session_version")
+  createdAt      BigInt    @map("created_at")
+  lastLogin      BigInt?   @map("last_login")
+  memberId       String    @default("") @map("member_id")
+  sessions       Session[]
+
+  @@map("users")
+}
+
+model Session {
+  idHash    String @id @map("id_hash")
+  userId    String @map("user_id")
+  ver       Int
+  createdAt BigInt @map("created_at")
+  lastSeen  BigInt @map("last_seen")
+  expiresAt BigInt @map("expires_at")
+  ip        String @default("")
+  ua        String @default("")
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model LoginAttempt {
+  id BigInt @id @default(autoincrement())
+  key String @map("key")
+  at BigInt
+
+  @@index([key, at])
+  @@map("login_attempts")
+}
+
+model Document {
+  collection String @map("coll")
+  id         String
+  data       Json
+  updatedAt  BigInt @map("updated_at")
+  updatedBy  String? @map("updated_by")
+
+  @@id([collection, id])
+  @@map("docs")
+}
+
+model Asset {
+  id        String @id
+  owner     String?
+  mime      String
+  size      Int
+  name      String?
+  sha256    String?
+  remotePath String? @map("remote_path")
+  createdAt BigInt @map("created_at")
+
+  @@map("assets")
+}
+
+model Audit {
+  id      BigInt @id @default(autoincrement())
+  at      BigInt
+  actor   String?
+  action  String
+  target  String?
+  details Json?
+
+  @@index([at])
+  @@map("audit")
+}
