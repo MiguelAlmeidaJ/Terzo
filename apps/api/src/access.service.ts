@@ -13,7 +13,7 @@ export class AccessService {
   private readonly rules: Rule[];
 
   constructor() {
-    const candidates = [path.join(process.cwd(), 'rules.json'), path.join(process.cwd(), 'rules.json'), path.resolve(__dirname, '../rules.json')];
+    const candidates = [path.join(process.cwd(), 'rules.json'), path.resolve(__dirname, '../rules.json')];
     const file = candidates.find((candidate) => fs.existsSync(candidate));
     if (!file) throw new Error('rules.json não encontrado');
     this.rules = JSON.parse(fs.readFileSync(file, 'utf8')).map((rule: Rule) => ({ ...rule, segs: rule.path.split('/') }));

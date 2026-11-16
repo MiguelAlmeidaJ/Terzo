@@ -17,7 +17,7 @@ if (fs.existsSync(envFile)) {
   }
 }
 
-const command = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+const command = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 const databaseUrl = process.env.DATABASE_URL || values.DATABASE_URL;
 if (!databaseUrl) throw new Error('DATABASE_URL é obrigatória no arquivo .env.');
 const executionEnv = {
@@ -28,8 +28,8 @@ const executionEnv = {
 };
 const run = (args) => spawnSync(command, args, { stdio: 'inherit', shell: process.platform === 'win32', env: executionEnv });
 for (const args of [
-  ['run', 'prisma:deploy', '--workspace', 'api'],
-  ['run', 'cli', '--workspace', 'api', '--', 'migrate-nextcloud'],
+  ['db:migrate'],
+  ['--filter', '@terzo/api', 'cli', 'migrate-nextcloud'],
 ]) {
   const result = run(args);
   if (result.error) throw result.error;

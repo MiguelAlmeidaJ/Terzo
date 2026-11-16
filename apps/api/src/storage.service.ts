@@ -103,7 +103,7 @@ export class StorageService {
         if (remote) return remote;
       } catch (error) { remoteError = error; }
     }
-    const local = await this.openLocal(path.join(process.cwd(), 'src', 'terzo_wm_dark.png'));
+    const local = await this.openLocal(path.join(__dirname, '..', 'assets', 'brand.png'));
     if (local) return local;
     if (remoteError) throw remoteError;
     return null;

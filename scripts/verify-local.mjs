@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
-import { PrismaPg } from '@prisma/adapter-pg';
+import { PrismaClient, createPostgresAdapter } from '@terzo/database';
 
 const values = {};
 for (const raw of fs.readFileSync(path.resolve('.env'), 'utf8').split(/\r?\n/)) {
@@ -15,8 +15,7 @@ for (const raw of fs.readFileSync(path.resolve('.env'), 'utf8').split(/\r?\n/)) 
 }
 process.env.DATABASE_URL = values.DATABASE_URL;
 
-const { PrismaClient } = await import('../api/dist/generated/prisma/client.js');
-const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }) });
+const prisma = new PrismaClient({ adapter: createPostgresAdapter() });
 const sid = crypto.randomBytes(32).toString('base64url');
 const idHash = crypto.createHash('sha256').update(sid).digest('hex');
 const profile = path.join(os.tmpdir(), `terzo-chrome-${crypto.randomUUID()}`);
