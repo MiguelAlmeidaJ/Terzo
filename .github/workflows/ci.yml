@@ -30,6 +30,9 @@ jobs:
       - name: Install workspace
         run: pnpm install --frozen-lockfile
 
+      - name: Verify monorepo structure
+        run: pnpm architecture:check
+
       - name: Audit production dependencies
         run: pnpm audit --prod
 
