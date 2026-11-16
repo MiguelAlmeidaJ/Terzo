@@ -19,8 +19,13 @@ export const config = {
     appPassword: env.NEXTCLOUD_APP_PASSWORD || '',
     basePath: env.NEXTCLOUD_BASE_PATH || 'Terzo',
     systemFolder: env.NEXTCLOUD_SYSTEM_FOLDER || 'TERCEIRO ANDAR',
+    readTimeoutMs: Number(env.NEXTCLOUD_READ_TIMEOUT_MS || 120_000),
+    writeTimeoutMs: Number(env.NEXTCLOUD_WRITE_TIMEOUT_MS || 30_000),
+    healthTimeoutMs: Number(env.NEXTCLOUD_HEALTH_TIMEOUT_MS || 10_000),
+    retries: Math.max(0, Math.min(5, Number(env.NEXTCLOUD_RETRIES || 2))),
+    reconcileIntervalMinutes: Math.max(0, Number(env.NEXTCLOUD_RECONCILE_INTERVAL_MINUTES || 30)),
   },
-  allowedMime: (env.ALLOWED_MIME || 'image/png,image/jpeg,image/gif,image/webp,image/svg+xml,application/pdf,video/mp4,video/webm,text/plain,text/csv,text/markdown,application/json,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.openxmlformats-officedocument.presentationml.presentation')
+  allowedMime: (env.ALLOWED_MIME || 'image/png,image/jpeg,image/gif,image/webp,application/pdf,video/mp4,video/webm,text/plain,text/csv,text/markdown,application/json,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.openxmlformats-officedocument.presentationml.presentation')
     .split(',').map((value) => value.trim()).filter(Boolean),
 };
 

@@ -35,6 +35,17 @@ export class AuthService {
   async requireReady(req: Request) {
     const auth = await this.require(req);
     if (auth.user.mustChange) throw new ForbiddenException('must_change_password');
+    if (auth.user.role === 'member' && auth.user.memberId) {
+      const profile = await this.prisma.document.findUnique({
+        where: { collection_id: { collection: 'members', id: auth.user.memberId } },
+      });
+      const data = profile?.data as any;
+      if (!data || data.accountId !== auth.user.id || data.disabled) {
+        // O diretório continua legível para a tela de "Acesso desativado".
+        if (!(req.method === 'GET' && req.path === '/api/db' && req.query?.coll === 'members'))
+          throw new ForbiddenException('member_disabled');
+      }
+    }
     return auth;
   }
 

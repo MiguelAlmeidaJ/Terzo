@@ -82,7 +82,18 @@ npm run build
 npm run pm2:reload
 ```
 
-O migrador lê as pastas já existentes dentro de `ARQUIVOS CLIENTES`, associa cada logo à pasta do respectivo cliente e não cria novas pastas de clientes. Arquivos internos e a logo do sistema usam a pasta existente configurada em `NEXTCLOUD_SYSTEM_FOLDER`. O banco registra o caminho WebDAV de cada arquivo e a API mantém a cópia local como fallback durante a transição.
+O migrador lê as pastas já existentes dentro de `ARQUIVOS CLIENTES`, cria vínculos persistentes no PostgreSQL e não cria novas pastas de clientes. Arquivos internos e a logo do sistema usam a pasta existente configurada em `NEXTCLOUD_SYSTEM_FOLDER`. Todo upload mantém uma cópia local atômica; quando o Nextcloud está indisponível, o arquivo fica pendente e é enviado pela reconciliação posterior.
+
+Operação e diagnóstico:
+
+```bash
+npm run nextcloud:reconcile:dry  # relatório sem alterações
+npm run nextcloud:reconcile      # verifica e corrige vínculos/arquivos
+npm run nextcloud:verify         # probe WebDAV isolado
+npm run verify:storage           # upload/download autenticado pela API
+```
+
+Timeouts, retentativas e intervalo da reconciliação são configuráveis pelas variáveis `NEXTCLOUD_*` documentadas em `.env.example`. Detalhes do modelo, estados e endpoints administrativos estão em `docs/fase-2-nextcloud.md`.
 
 ### Atualizações
 

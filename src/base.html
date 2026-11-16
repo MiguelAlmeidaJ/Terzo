@@ -1889,7 +1889,7 @@ function creativeForm(c,files){const isNew=!c;const multi=files&&files.length>1;
    if(v.link&&!/^https?:\/\//i.test(v.link)){toast('O link precisa começar com http:// ou https://');throw new Error('link')}
    if(!files){const id=c.id||uid();await put('creatives',id,{...c,...v,createdAt:c.createdAt||today(),ts:c.ts||Date.now()});toast(isNew?'Link adicionado':'Criativo atualizado');return}
    let ok=0;for(let i=0;i<files.length;i++){const f=files[i];toast(`Enviando ${i+1} de ${files.length}…`);
-    try{const r=await assets.upload(f);const rec={...v,title:multi?f.name.replace(/\.[^.]+$/,''):v.title,assetId:r.id,contentType:r.contentType,sizeBytes:r.sizeBytes,fileName:f.name,createdAt:today(),ts:Date.now()};
+    try{const r=await assets.upload(f,{clientId:v.clientId});const rec={...v,title:multi?f.name.replace(/\.[^.]+$/,''):v.title,assetId:r.id,contentType:r.contentType,sizeBytes:r.sizeBytes,fileName:f.name,createdAt:today(),ts:Date.now()};
      await put('creatives',uid(),rec);ok++}
     catch(e){const m={too_large:'é maior que 20 MB',unsupported_type:'tem um formato não aceito',quota_or_state:'não coube: o espaço da biblioteca acabou',rate_limited:'não foi enviado: muitos envios seguidos, tente em instantes',not_granted:'não foi enviado: seu acesso não permite upload'}[e?.code]||'não foi enviado';toast(`“${f.name}” ${m}.`);await new Promise(r=>setTimeout(r,1800))}}
    if(ok)sysPost(`**${actor()}** subiu ${ok>1?ok+' criativos':'o criativo **'+(multi?files[0].name:v.title)+'**'}${v.clientId?' de **'+cName(v.clientId)+'**':''} na biblioteca`,{act:'nav',id:'',v:'criativos'});
@@ -2265,7 +2265,7 @@ $('#mwrap').addEventListener('click',e=>{if(e.target.id==='mwrap')closeModal()})
 document.addEventListener('input',e=>{const t=e.target;const fe=t.dataset?.fe;if(!fe||!flowDraft)return;const[i,k]=fe.split(':');if(flowDraft[+i])flowDraft[+i][k]=k==='sla'?+t.value:t.value});
 $('#cl-file').addEventListener('change',async e=>{const f=e.target.files[0];e.target.value='';if(!f||!logoTarget||!assets)return;
  if(!/^image\//.test(f.type)){toast('Escolha uma imagem PNG, JPG, WEBP ou SVG.');return}toast('Enviando logo…');
- try{const blob=await containImage(f,320);const r=await assets.upload(blob,{type:'image/png'});const c=byId('clients',logoTarget);const old=c.logoId;await put('clients',logoTarget,{...c,logoId:r.id});if(old)assets.delete(old).catch(()=>{});toast('Logo de '+c.name+' salva')}
+ try{const blob=await containImage(f,320);const r=await assets.upload(blob,{type:'image/png',clientId:logoTarget});const c=byId('clients',logoTarget);const old=c.logoId;await put('clients',logoTarget,{...c,logoId:r.id});if(old)assets.delete(old).catch(()=>{});toast('Logo de '+c.name+' salva')}
  catch(err){toast(err?.code==='too_large'?'Imagem grande demais.':err?.code==='not_granted'?'Seu acesso não permite enviar imagens.':'Não foi possível usar essa imagem. Tente um PNG ou JPG.')}});
 $('#pf-file').addEventListener('change',async e=>{const f=e.target.files[0];e.target.value='';if(!f||!pfTarget||!assets)return;
  if(!/^image\//.test(f.type)){toast('Escolha uma imagem JPG, PNG ou WEBP.');return}const el=$('#pf-status');if(el)el.textContent='Enviando foto…';

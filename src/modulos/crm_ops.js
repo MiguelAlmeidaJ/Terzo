@@ -307,7 +307,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-act]
  case'tk-adj-send':{const r=($('#tk-reason')?.value||'').trim();if(r.length<3){toast('Descreva o que precisa ser ajustado.');$('#tk-reason')?.focus();return}b.disabled=true;await tkMove(id,'Em ajustes',r,'Ajustes solicitados');break}
  case'tk-attach':{if(!assets){toast('Seu acesso não permite enviar arquivos.');return}let inp=$('#tk-file');if(!inp){inp=document.createElement('input');inp.type='file';inp.id='tk-file';inp.hidden=true;document.body.appendChild(inp);
    inp.addEventListener('change',async()=>{const f=inp.files[0];const tid=inp.dataset.task;inp.value='';if(!f||!tid)return;if(f.size>20*1048576){toast('O arquivo passa de 20 MB. Use um link de referência.');return}
-    try{toast('Enviando '+f.name+'…');const r=await assets.upload(f);const t=byId('todos',tid);await put('todos',tid,{...t,files:[...(t.files||[]),{assetId:r.id,name:f.name,type:r.contentType||f.type,at:new Date().toISOString(),by:me.id||''}]});toast('Arquivo anexado')}catch(x){toast('Não foi possível anexar este arquivo.')}})}
+    try{toast('Enviando '+f.name+'…');const t=byId('todos',tid);const r=await assets.upload(f,{clientId:t?.clientId});await put('todos',tid,{...t,files:[...(t.files||[]),{assetId:r.id,name:f.name,type:r.contentType||f.type,at:new Date().toISOString(),by:me.id||''}]});toast('Arquivo anexado')}catch(x){toast('Não foi possível anexar este arquivo.')}})}
   inp.dataset.task=id;inp.click();break}
  case'tk-leaders':if(isAdmin())tkLeadersModal();break;
  case'tk-leaders-save':{if(!isAdmin())return;const on=new Set([...document.querySelectorAll('#tk-lead-chips .chip[aria-pressed="true"]')].map(x=>x.dataset.v));

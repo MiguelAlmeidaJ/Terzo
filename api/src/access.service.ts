@@ -27,6 +27,14 @@ export class AccessService {
 
   can(user: User, documentPath: string, operation: Operation) {
     const segments = documentPath.split('/');
+    const collection = segments[0], id = segments[1];
+    const admin = this.level(user) >= 3;
+    if (!admin && !user.memberId && !['members', 'access_req'].includes(collection)) return false;
+    if (['cm', 'cr', 'ck', 'acad_progress'].includes(collection) && !admin && id !== user.id) return false;
+    if (collection === 'access_log') return admin;
+    if (collection === 'access_req') return admin || id === user.id;
+    if (collection === 'members' && operation === 'write')
+      return admin || (!!user.memberId && id === user.memberId);
     if (segments[0] === 'data' && segments[1] === 'users') return segments[2] === user.id;
     if (this.isPrivateForAnotherUser(segments, user.id)) return false;
     const writeRule = this.deepest(segments, 'write', user.id);

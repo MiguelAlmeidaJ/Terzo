@@ -6,6 +6,7 @@ import { config, now } from './config';
 import { hashPassword, temporaryPassword } from './security';
 import { StorageService } from './storage.service';
 import { createPostgresAdapter } from './database';
+import { NextcloudReconciliationService } from './nextcloud-reconciliation.service';
 
 const prisma = new PrismaClient({ adapter: createPostgresAdapter() });
 const [, , command, ...args] = process.argv;
@@ -45,54 +46,24 @@ async function importData() {
 
 async function migrateNextcloud() {
   const storage = new StorageService();
-  if (!storage.isNextcloudEnabled()) throw new Error('Defina NEXTCLOUD_ENABLED=true e configure as credenciais antes da migração.');
-  const normalize = (value: string) => value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim();
-  const aliases: Record<string, string> = {
-    'ATIVA VET': 'ATIVA', 'X OISHI': 'OISHI', 'PIZZARIA JEITINHO BRASILEIRO': 'JEITINHO BRASILEIRO',
-    'THALITA BALBI': 'DRA. THALITA BALBI', 'CLINICA E CIRURGIA DE OLHOS MAYRINK': 'DR MAYRINK',
-    'DR DANILO VARGAS': 'DR. DANILO', 'DROGARIA TOMAZ': 'DROGRARIA TOMAZ',
-    'RESTAURANTE PESQUEIRO': 'PESQUEIRO MARINÓPOLIS',
-  };
-  const directories = await storage.listDirectories();
-  const byNormalizedName = new Map(directories.map((name) => [normalize(name), name]));
-  const clientDocuments = await prisma.document.findMany({ where: { collection: 'clients' } });
-  const assetFolders = new Map<string, string>();
-  const unmatched: string[] = [];
-  for (const document of clientDocuments) {
-    const client = document.data as any;
-    if (!client?.logoId || !client?.name) continue;
-    const alias = aliases[normalize(client.name)];
-    const folder = alias || byNormalizedName.get(normalize(client.name));
-    if (!folder || !byNormalizedName.has(normalize(folder))) unmatched.push(client.name);
-    else assetFolders.set(client.logoId, byNormalizedName.get(normalize(folder))!);
-  }
-  if (unmatched.length) throw new Error(`Pastas de clientes não localizadas no Nextcloud: ${unmatched.join(', ')}`);
-  if (!byNormalizedName.has(normalize(config.nextcloud.systemFolder))) {
-    throw new Error(`A pasta interna "${config.nextcloud.systemFolder}" não existe no Nextcloud.`);
-  }
-  const systemFolder = byNormalizedName.get(normalize(config.nextcloud.systemFolder))!;
-  const assets = await prisma.asset.findMany({ select: { id: true } });
-  let migrated = 0; let missing = 0; const failures: string[] = [];
-  for (const asset of assets) {
-    try {
-      const remotePath = await storage.migrateLocalAsset(asset.id, assetFolders.get(asset.id) || systemFolder);
-      await prisma.asset.update({ where: { id: asset.id }, data: { remotePath } });
-      migrated++;
-    } catch (error: any) {
-      if (error?.code === 'ENOENT') missing++;
-      else failures.push(`${asset.id}: ${error?.message || error}`);
-    }
-  }
+  const reconciliation = new NextcloudReconciliationService(prisma as any, storage);
+  const result = await reconciliation.reconcile({ dryRun: args.includes('--dry-run'), source: command === 'migrate-nextcloud' ? 'migration' : 'cli' });
   const logo = await fs.readFile(path.resolve(__dirname, '..', '..', 'src', 'terzo_wm_dark.png'));
-  await storage.putBrand(logo);
-  console.log(`Nextcloud: ${migrated} arquivos enviados às pastas existentes, ${missing} arquivos locais ausentes e logo enviada em ${systemFolder}.`);
-  if (failures.length) throw new Error(`Falharam ${failures.length} arquivos:\n${failures.join('\n')}`);
+  if (!args.includes('--dry-run')) await storage.putBrand(logo);
+  console.log(JSON.stringify(result, null, 2));
+}
+
+async function verifyNextcloud() {
+  const result = await new StorageService().probe();
+  console.log(JSON.stringify(result, null, 2));
 }
 
 async function run() {
   if (command === 'create-admin') await createAdmin();
   else if (command === 'import') await importData();
   else if (command === 'migrate-nextcloud') await migrateNextcloud();
-  else throw new Error('Comandos: create-admin | import | migrate-nextcloud');
+  else if (command === 'reconcile-nextcloud') await migrateNextcloud();
+  else if (command === 'verify-nextcloud') await verifyNextcloud();
+  else throw new Error('Comandos: create-admin | import | migrate-nextcloud | reconcile-nextcloud | verify-nextcloud');
 }
 run().catch((error) => { console.error(error.message || error); process.exitCode = 1; }).finally(() => prisma.$disconnect());
