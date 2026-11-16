@@ -20,6 +20,13 @@ export class StorageController {
   @Get('bindings')
   async bindings(@Req() req: Request) { await this.admin(req); return { bindings: await this.reconciliation.listBindings() }; }
 
+  @Get('folders')
+  async folders(@Req() req: Request) {
+    await this.admin(req);
+    try { return { folders: await this.storage.listDirectoryEntries() }; }
+    catch (error) { throw this.externalError(error); }
+  }
+
   @Put('bindings/:clientId')
   async bind(@Param('clientId') clientId: string, @Body() body: any, @Req() req: Request) {
     await this.admin(req);

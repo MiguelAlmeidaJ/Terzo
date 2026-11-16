@@ -215,3 +215,21 @@ test('upload cannot claim an unknown client folder', async () => {
   } as any, {} as any), /permission_denied/);
   assert.equal(stored, false);
 });
+
+test('Nextcloud browser is confined to the client persistent folder', async () => {
+  let listed = false;
+  const prisma = {
+    document: { findUnique: async () => ({ id: 'c1', data: { name: 'Cliente' } }) },
+    clientStorageBinding: { findUnique: async () => ({ clientId: 'c1', folderPath: 'ARQUIVOS CLIENTES/CLIENTE', status: 'active' }) },
+  };
+  const storage = { listEntries: async () => { listed = true; return []; } };
+  const controller = new AssetsController(
+    prisma as any, { requireReady: async () => ({ user: owner }) } as any,
+    access, storage as any, {} as any,
+  );
+  await assert.rejects(
+    () => controller.nextcloudFiles('c1', 'ARQUIVOS CLIENTES/CLIENTE/../OUTRO', {} as any),
+    /invalid_path/,
+  );
+  assert.equal(listed, false);
+});

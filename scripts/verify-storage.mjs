@@ -18,6 +18,7 @@ const sid = crypto.randomBytes(32).toString('base64url');
 const idHash = crypto.createHash('sha256').update(sid).digest('hex');
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
 let assetId;
+let importedAssetId;
 
 const request = async (url, init = {}) => {
   const response = await fetch(`${baseUrl}${url}`, {
@@ -69,16 +70,33 @@ try {
   const row = await prisma.asset.findUniqueOrThrow({ where: { id: assetId } });
   if (row.clientId !== binding.clientId || row.storageState !== 'synced' || !row.remotePath) throw new Error('Metadados de armazenamento não foram persistidos corretamente.');
   const monitoring = await (await request('/api/admin/storage/status')).json();
+  const browser = await (await request(`/api/assets/nextcloud/${encodeURIComponent(binding.clientId)}`)).json();
+  if (browser.rootPath !== binding.folderPath || !Array.isArray(browser.entries)) throw new Error('O navegador do Nextcloud não abriu a pasta vinculada do cliente.');
+  const uploadedEntry = browser.entries.find((entry) => entry.path === row.remotePath);
+  if (!uploadedEntry || uploadedEntry.contentType !== 'image/png') throw new Error('O arquivo enviado não apareceu corretamente no navegador do Nextcloud.');
+  const imported = await (await request('/api/assets/nextcloud', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ clientId: binding.clientId, path: uploadedEntry.path }),
+  })).json();
+  importedAssetId = imported.id;
+  const importedDownload = Buffer.from(await (await request(`/_blob/${importedAssetId}`)).arrayBuffer());
+  if (!importedDownload.equals(png)) throw new Error('O arquivo escolhido no Nextcloud não corresponde ao original.');
+  await request(`/api/assets/${importedAssetId}`, { method: 'DELETE' });
+  importedAssetId = undefined;
+  const folders = await (await request('/api/admin/storage/folders')).json();
+  if (!folders.folders?.some((folder) => folder.path === binding.folderPath)) throw new Error('A pasta vinculada não apareceu no seletor administrativo.');
   if (monitoring.storage?.state !== 'healthy') throw new Error(`Monitoramento do Nextcloud não ficou saudável: ${monitoring.storage?.state}`);
 
   await request(`/api/assets/${assetId}`, { method: 'DELETE' });
   assetId = undefined;
   console.log(JSON.stringify({
     ok: true, clientId: binding.clientId, bytes: png.length, upload: 'synced', download: 'verified', cleanup: 'verified',
-    monitoring: 'healthy', security: { unauthenticatedDownload: 'blocked', crossSiteWrite: 'blocked', svgUpload: 'blocked' },
+    monitoring: 'healthy', nextcloudBrowser: 'verified', nextcloudImport: 'verified', folderSelector: 'verified',
+    security: { unauthenticatedDownload: 'blocked', crossSiteWrite: 'blocked', svgUpload: 'blocked' },
   }, null, 2));
 } finally {
   if (assetId) await request(`/api/assets/${assetId}`, { method: 'DELETE' }).catch(() => undefined);
+  if (importedAssetId) await request(`/api/assets/${importedAssetId}`, { method: 'DELETE' }).catch(() => undefined);
   await prisma.session.deleteMany({ where: { idHash } }).catch(() => undefined);
   await prisma.$disconnect();
 }

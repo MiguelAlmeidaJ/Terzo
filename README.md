@@ -84,6 +84,8 @@ npm run pm2:reload
 
 O migrador lê as pastas já existentes dentro de `ARQUIVOS CLIENTES`, cria vínculos persistentes no PostgreSQL e não cria novas pastas de clientes. Arquivos internos e a logo do sistema usam a pasta existente configurada em `NEXTCLOUD_SYSTEM_FOLDER`. Todo upload mantém uma cópia local atômica; quando o Nextcloud está indisponível, o arquivo fica pendente e é enviado pela reconciliação posterior.
 
+Na interface, abra a ficha do cliente e use **Configurar pasta** para alterar o vínculo. Em logos e criativos, **Escolher no Nextcloud** navega nas pastas existentes e vincula o arquivo sem exigir download para a máquina; **Enviar do computador** permanece disponível para arquivos novos.
+
 Operação e diagnóstico:
 
 ```bash

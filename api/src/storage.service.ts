@@ -18,6 +18,7 @@ export type StorageWriteResult = {
 
 export type RemoteMetadata = { path: string; exists: boolean; size?: number; etag?: string };
 export type NextcloudDirectory = { name: string; path: string; etag?: string };
+export type NextcloudEntry = NextcloudDirectory & { directory: boolean; size?: number; contentType?: string };
 
 export class NextcloudRequestError extends Error {
   constructor(message: string, readonly code: 'timeout' | 'unavailable' | 'http', readonly status?: number) {
@@ -61,14 +62,14 @@ export class StorageService {
   }
 
   directoryPath(folder: string) { return this.remotePath(folder); }
-  assetPath(folderPath: string, id: string) { return this.joinRemote(folderPath, id); }
+  assetPath(folderPath: string, id: string, contentType?: string) { return this.joinRemote(folderPath, this.assetFileName(id, contentType)); }
 
-  async putAsset(id: string, body: Buffer, destination?: string): Promise<StorageWriteResult> {
+  async putAsset(id: string, body: Buffer, destination?: string, contentType = 'application/octet-stream'): Promise<StorageWriteResult> {
     await this.writeLocal(id, body);
     if (!this.isNextcloudEnabled()) return { remotePath: null, remoteEtag: null, state: 'local', error: null };
-    const remotePath = destination || this.remotePath(config.nextcloud.systemFolder, id);
+    const remotePath = destination || this.remotePath(config.nextcloud.systemFolder, this.assetFileName(id, contentType));
     try {
-      const remoteEtag = await this.putRemote(remotePath, body, 'application/octet-stream');
+      const remoteEtag = await this.putRemote(remotePath, body, contentType);
       return { remotePath, remoteEtag, state: 'synced', error: null };
     } catch (error) {
       return { remotePath: null, remoteEtag: null, state: 'pending', error: this.errorMessage(error) };
@@ -122,10 +123,10 @@ export class StorageService {
     try { await fs.access(this.localPath(id)); return true; } catch { return false; }
   }
 
-  async uploadLocalAsset(id: string, destination: string) {
+  async uploadLocalAsset(id: string, destination: string, contentType = 'application/octet-stream') {
     this.requireNextcloud();
     const body = await fs.readFile(this.localPath(id));
-    const remoteEtag = await this.putRemote(destination, body, 'application/octet-stream');
+    const remoteEtag = await this.putRemote(destination, body, contentType);
     return { remotePath: destination, remoteEtag };
   }
 
@@ -150,21 +151,38 @@ export class StorageService {
   }
 
   async listDirectoryEntries(): Promise<NextcloudDirectory[]> {
+    return (await this.listEntries(this.remotePath())).filter((entry) => entry.directory);
+  }
+
+  async listEntries(directory: string): Promise<NextcloudEntry[]> {
     this.requireNextcloud();
-    const response = await this.request(this.remotePath(), {
+    const safeDirectory = this.joinRemote(directory);
+    const response = await this.request(safeDirectory, {
       method: 'PROPFIND', headers: { Depth: '1', 'Content-Type': 'application/xml' },
-      body: '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:resourcetype/><d:getetag/></d:prop></d:propfind>',
+      body: '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:resourcetype/><d:getetag/><d:getcontentlength/><d:getcontenttype/></d:prop></d:propfind>',
     }, [207]);
     const xml = await response.text();
     return [...xml.matchAll(/<[^:>]*:?response>([\s\S]*?)<\/[^:>]*:?response>/g)].slice(1).flatMap((entry) => {
-      if (!/<[^:>]*:?collection\s*\/>/.test(entry[1])) return [];
       const href = entry[1].match(/<[^:>]*:?href>(.*?)<\/[^:>]*:?href>/)?.[1];
       if (!href) return [];
-      const name = decodeURIComponent(href.replace(/\/$/, '').split('/').pop() || '');
+      const encodedName = href.replace(/\/$/, '').split('/').pop() || '';
+      const name = decodeURIComponent(encodedName.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>'));
       if (!name) return [];
       const etag = entry[1].match(/<[^:>]*:?getetag>(.*?)<\/[^:>]*:?getetag>/)?.[1];
-      return [{ name, path: this.remotePath(name), etag }];
+      const contentType = entry[1].match(/<[^:>]*:?getcontenttype>(.*?)<\/[^:>]*:?getcontenttype>/)?.[1];
+      const parsedSize = Number(entry[1].match(/<[^:>]*:?getcontentlength>(.*?)<\/[^:>]*:?getcontentlength>/)?.[1]);
+      return [{
+        name, path: this.joinRemote(safeDirectory, name), etag,
+        directory: /<[^:>]*:?collection\s*\/>/.test(entry[1]),
+        size: Number.isFinite(parsedSize) ? parsedSize : undefined,
+        contentType: contentType || undefined,
+      }];
     });
+  }
+
+  async copyRemote(source: string, destination: string) {
+    if (source === destination) return;
+    await this.request(source, { method: 'COPY', headers: { Destination: this.remoteUrl(destination), Overwrite: 'F' } }, [201, 204]);
   }
 
   async probe() {
@@ -245,6 +263,18 @@ export class StorageService {
     return segments.join('/');
   }
 
+  private assetFileName(id: string, contentType?: string) {
+    const extension = ({
+      'image/png': 'png', 'image/jpeg': 'jpg', 'image/gif': 'gif', 'image/webp': 'webp',
+      'application/pdf': 'pdf', 'video/mp4': 'mp4', 'video/webm': 'webm', 'text/plain': 'txt',
+      'text/csv': 'csv', 'text/markdown': 'md', 'application/json': 'json',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
+    } as Record<string, string>)[String(contentType || '').toLowerCase()];
+    return extension && !id.toLowerCase().endsWith(`.${extension}`) ? `${id}.${extension}` : id;
+  }
+
   private remoteRoot() {
     this.requireNextcloud();
     return `${config.nextcloud.url}/remote.php/dav/files/${encodeURIComponent(config.nextcloud.userId)}`;
@@ -259,7 +289,7 @@ export class StorageService {
     this.requireNextcloud();
     const method = String(init.method || 'GET').toUpperCase();
     const timeout = method === 'GET' ? config.nextcloud.readTimeoutMs : ['HEAD', 'PROPFIND'].includes(method) ? config.nextcloud.healthTimeoutMs : config.nextcloud.writeTimeoutMs;
-    const retryableMethod = ['GET', 'HEAD', 'PROPFIND', 'PUT', 'DELETE', 'MOVE'].includes(method);
+    const retryableMethod = ['GET', 'HEAD', 'PROPFIND', 'PUT', 'DELETE', 'MOVE', 'COPY'].includes(method);
     let lastError: unknown;
     for (let attempt = 0; attempt <= config.nextcloud.retries; attempt++) {
       const started = Date.now();

@@ -18,7 +18,9 @@ async function bootstrap() {
   const server = app.getHttpAdapter().getInstance();
   server.set('trust proxy', config.trustProxy);
   server.use((req: Request, res: Response, next: NextFunction) => { for (const [name, value] of Object.entries(securityHeaders)) res.setHeader(name, value); next(); });
-  server.use('/api/assets', (req: Request, res: Response, next: NextFunction) => req.method === 'POST' ? express.raw({ type: '*/*', limit: `${config.maxUploadMB}mb` })(req, res, next) : next());
+  server.use('/api/assets', (req: Request, res: Response, next: NextFunction) => req.method === 'POST' && req.path === '/'
+    ? express.raw({ type: '*/*', limit: `${config.maxUploadMB}mb` })(req, res, next)
+    : next());
   server.use(express.json({ limit: '1.5mb' }));
   server.use((req: Request, res: Response, next: NextFunction) => {
     if (req.path.startsWith('/api/') && !['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {

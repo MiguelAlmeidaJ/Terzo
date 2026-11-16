@@ -100,7 +100,7 @@ export class NextcloudReconciliationService implements OnModuleInit, OnModuleDes
       const clientId = asset.clientId || inferredClients.get(asset.id) || null;
       const binding: any = clientId ? bindingMap.get(clientId) : undefined;
       const targetFolder = binding?.status === 'active' ? binding.folderPath : this.storage.directoryPath(config.nextcloud.systemFolder);
-      const target = this.storage.assetPath(targetFolder, asset.id);
+      const target = this.storage.assetPath(targetFolder, asset.id, asset.mime);
       const current = asset.remotePath || target;
       const timestamp = now();
       try {
@@ -116,7 +116,7 @@ export class NextcloudReconciliationService implements OnModuleInit, OnModuleDes
           } else if (metadata.size != null && metadata.size !== asset.size && await this.storage.hasLocalAsset(asset.id)) {
             actions.push({ assetId: asset.id, action: 'upload', from: metadata.path, to: target });
             if (!dryRun) {
-              const uploaded = await this.storage.uploadLocalAsset(asset.id, target);
+              const uploaded = await this.storage.uploadLocalAsset(asset.id, target, asset.mime);
               metadata = { path: target, exists: true, size: asset.size, etag: uploaded.remoteEtag || undefined };
             }
           } else actions.push({ assetId: asset.id, action: 'verified', to: target });
@@ -130,7 +130,7 @@ export class NextcloudReconciliationService implements OnModuleInit, OnModuleDes
         if (await this.storage.hasLocalAsset(asset.id)) {
           actions.push({ assetId: asset.id, action: 'upload', from: asset.remotePath, to: target });
           if (!dryRun) {
-            const uploaded = await this.storage.uploadLocalAsset(asset.id, target);
+            const uploaded = await this.storage.uploadLocalAsset(asset.id, target, asset.mime);
             await this.prisma.asset.update({ where: { id: asset.id }, data: {
               clientId, remotePath: uploaded.remotePath, remoteEtag: uploaded.remoteEtag,
               storageState: 'synced', storageError: null, lastVerifiedAt: timestamp,

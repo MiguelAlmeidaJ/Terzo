@@ -56,7 +56,15 @@ var assets={
   if(opts&&opts.clientId)headers['X-Client-Id']=String(opts.clientId);
   var r=await api('/api/assets',{method:'POST',body:blob,headers:headers});return r},
  delete:async function(id){await api('/api/assets/'+encodeURIComponent(id),{method:'DELETE'})},
+ nextcloud:async function(clientId,path){var u='/api/assets/nextcloud/'+encodeURIComponent(clientId);if(path)u+='?path='+encodeURIComponent(path);return api(u)},
+ importNextcloud:async function(clientId,path){return api('/api/assets/nextcloud',{method:'POST',json:{clientId:clientId,path:path}})},
  list:async function(){var r=await api('/api/assets');return{assets:r.assets,usage:{}}}};
+
+window.terzoStorage={
+ folders:async function(){return api('/api/admin/storage/folders')},
+ bindings:async function(){return api('/api/admin/storage/bindings')},
+ bind:async function(clientId,folder){return api('/api/admin/storage/bindings/'+encodeURIComponent(clientId),{method:'PUT',json:{folder:folder}})}
+};
 
 /* ---------------- quem está usando ---------------- */
 var ME=null;

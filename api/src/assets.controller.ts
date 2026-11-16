@@ -1,4 +1,4 @@
-import { BadRequestException, Controller, Delete, ForbiddenException, Get, HttpCode, NotFoundException, Param, Post, Req, Res, UnsupportedMediaTypeException } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, HttpCode, NotFoundException, Param, Post, Query, Req, Res, UnsupportedMediaTypeException } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { randomBytes } from 'node:crypto';
 import { AuthService } from './auth.service';
@@ -31,9 +31,9 @@ export class AssetsController {
       const client = await this.prisma.document.findUnique({ where: { collection_id: { collection: 'clients', id: clientId } } });
       if (!client || !this.access.can(user, `clients/${clientId}`, 'read')) throw new ForbiddenException('permission_denied');
       const binding = await this.prisma.clientStorageBinding.findUnique({ where: { clientId } });
-      if (binding?.status === 'active') destination = this.storage.assetPath(binding.folderPath, id);
+      if (binding?.status === 'active') destination = this.storage.assetPath(binding.folderPath, id, mime);
     }
-    const stored = await this.storage.putAsset(id, body, destination);
+    const stored = await this.storage.putAsset(id, body, destination, mime);
     let decodedName = '';
     try { decodedName = decodeURIComponent(String(req.headers['x-file-name'] || '')); } catch { decodedName = 'arquivo'; }
     const name = decodedName.replace(/[\\/\r\n"]/g, '_').slice(0, 200);
@@ -55,6 +55,56 @@ export class AssetsController {
     const { user } = await this.auth.requireReady(req);
     const assets = await this.prisma.asset.findMany({ where: this.access.level(user) >= 3 ? {} : { owner: user.id } });
     return { assets: assets.map((asset) => ({ id: asset.id, url: `/_blob/${asset.id}`, contentType: asset.mime, sizeBytes: asset.size, name: asset.name, clientId: asset.clientId, storageState: asset.storageState })) };
+  }
+
+  @Get('api/assets/nextcloud/:clientId')
+  async nextcloudFiles(@Param('clientId') clientId: string, @Query('path') requestedPath: string | undefined, @Req() req: Request) {
+    const { user } = await this.auth.requireReady(req);
+    const binding = await this.clientBinding(user, clientId);
+    const currentPath = String(requestedPath || binding.folderPath).trim();
+    this.assertInsideBinding(currentPath, binding.folderPath);
+    const entries = await this.storage.listEntries(currentPath);
+    return {
+      clientId, rootPath: binding.folderPath, currentPath,
+      entries: entries.map((entry) => ({
+        name: entry.name, path: entry.path, directory: entry.directory,
+        sizeBytes: entry.size ?? 0, contentType: entry.contentType || this.mimeFromName(entry.name),
+      })),
+    };
+  }
+
+  @Post('api/assets/nextcloud')
+  @HttpCode(200)
+  async importNextcloud(@Body() body: any, @Req() req: Request) {
+    const { user } = await this.auth.requireReady(req);
+    const clientId = String(body?.clientId || '').trim();
+    const sourcePath = String(body?.path || '').trim();
+    const binding = await this.clientBinding(user, clientId);
+    this.assertInsideBinding(sourcePath, binding.folderPath);
+    const separator = sourcePath.lastIndexOf('/');
+    if (separator < binding.folderPath.length) throw new BadRequestException('invalid_path');
+    const parent = sourcePath.slice(0, separator);
+    const source = (await this.storage.listEntries(parent)).find((entry) => entry.path === sourcePath && !entry.directory);
+    if (!source) throw new NotFoundException('not_found');
+    const mime = String(source.contentType || this.mimeFromName(source.name)).split(';')[0].toLowerCase();
+    if (mime === 'image/svg+xml' || !config.allowedMime.includes(mime)) throw new UnsupportedMediaTypeException('unsupported_type');
+    const size = source.size || 0;
+    if (size > 2_000_000_000) throw new BadRequestException('too_large');
+    const id = randomBytes(16).toString('hex');
+    const destination = this.storage.assetPath(binding.folderPath, id, mime);
+    await this.storage.copyRemote(source.path, destination);
+    try {
+      const metadata = await this.storage.inspectRemote(destination);
+      await this.prisma.asset.create({ data: {
+        id, owner: user.id, mime, size, name: source.name.slice(0, 200), sha256: null, clientId,
+        remotePath: destination, remoteEtag: metadata.etag || source.etag || null,
+        storageState: 'synced', storageError: null, lastVerifiedAt: now(), createdAt: now(),
+      } });
+    } catch (error) {
+      await this.storage.deleteAsset(id, destination).catch(() => undefined);
+      throw error;
+    }
+    return { id, url: `/_blob/${id}`, contentType: mime, sizeBytes: size, name: source.name, storageState: 'synced' };
   }
 
   @Delete('api/assets/:id')
@@ -101,6 +151,26 @@ export class AssetsController {
     res.status(object.kind === 'remote' ? object.status : 200);
     res.set({ 'Content-Type': contentType, 'Cache-Control': cacheControl, ...(object.size != null ? { 'Content-Length': String(object.size) } : {}) });
     object.stream.pipe(res);
+  }
+
+  private async clientBinding(user: any, clientId: string) {
+    if (!/^(?!\.\.?$)[A-Za-z0-9_\-.~:@+]{1,200}$/.test(clientId)) throw new BadRequestException('invalid_client');
+    const client = await this.prisma.document.findUnique({ where: { collection_id: { collection: 'clients', id: clientId } } });
+    if (!client || !this.access.can(user, `clients/${clientId}`, 'read')) throw new ForbiddenException('permission_denied');
+    const binding = await this.prisma.clientStorageBinding.findUnique({ where: { clientId } });
+    if (!binding || binding.status !== 'active') throw new NotFoundException('storage_binding_not_found');
+    return binding;
+  }
+
+  private assertInsideBinding(candidate: string, root: string) {
+    if (!candidate || (candidate !== root && !candidate.startsWith(`${root}/`)) || candidate.split('/').some((part) => part === '.' || part === '..')) {
+      throw new BadRequestException('invalid_path');
+    }
+  }
+
+  private mimeFromName(name: string) {
+    const extension = name.toLowerCase().split('.').pop();
+    return ({ png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml', pdf: 'application/pdf', mp4: 'video/mp4', webm: 'video/webm', txt: 'text/plain', csv: 'text/csv', md: 'text/markdown', json: 'application/json', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' } as Record<string, string>)[extension || ''] || 'application/octet-stream';
   }
 
   private sniff(mime: string, buffer: Buffer) {

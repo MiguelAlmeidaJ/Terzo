@@ -13,6 +13,8 @@ Estados de asset: `local`, `pending`, `synced`, `missing` e `error`.
 
 Todo upload é gravado primeiro de forma atômica em `data/blobs`. Se o Nextcloud estiver indisponível, a API aceita o upload como `pending`; a reconciliação posterior envia a cópia local. Downloads tentam o Nextcloud e usam a cópia local quando necessário.
 
+Na ficha do cliente, administradores podem usar **Configurar pasta** para escolher uma pasta já existente dentro de `ARQUIVOS CLIENTES`. Os fluxos de logo e biblioteca oferecem **Escolher no Nextcloud**, com navegação por subpastas, além da opção **Enviar do computador**. Um arquivo escolhido no Nextcloud é copiado pelo próprio WebDAV para o identificador gerenciado pelo Terzo, sem trafegar pelo computador do usuário.
+
 Timeouts e retentativas são configurados pelas variáveis `NEXTCLOUD_*_TIMEOUT_MS`, `NEXTCLOUD_RETRIES` e `NEXTCLOUD_RECONCILE_INTERVAL_MINUTES`.
 
 ## Operação

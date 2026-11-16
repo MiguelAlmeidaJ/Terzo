@@ -167,3 +167,35 @@ test('transient server failure is retried and then succeeds', async () => {
     Object.assign(config.nextcloud, previous);
   }
 });
+
+test('Nextcloud browser lists folders and files and can copy a selected file server-side', async () => {
+  const previous = { ...config.nextcloud };
+  const realFetch = globalThis.fetch;
+  const methods: string[] = [];
+  try {
+    Object.assign(config.nextcloud, { enabled: true, url: 'https://cloud.example.test', userId: 'u', username: 'u', appPassword: 'test', retries: 0 });
+    globalThis.fetch = async (_url, init) => {
+      const method = String(init?.method || 'GET'); methods.push(method);
+      if (method === 'COPY') {
+        assert.match(String((init?.headers as any)?.Destination), /CLIENT\/asset-id$/);
+        return new Response(null, { status: 201 });
+      }
+      const xml = `<?xml version="1.0"?><d:multistatus xmlns:d="DAV:">
+        <d:response><d:href>/remote.php/dav/files/u/BASE/CLIENT/</d:href><d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop></d:propstat></d:response>
+        <d:response><d:href>/remote.php/dav/files/u/BASE/CLIENT/BRUTOS/</d:href><d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype><d:getetag>folder-etag</d:getetag></d:prop></d:propstat></d:response>
+        <d:response><d:href>/remote.php/dav/files/u/BASE/CLIENT/logo.png</d:href><d:propstat><d:prop><d:resourcetype/><d:getetag>file-etag</d:getetag><d:getcontentlength>123</d:getcontentlength><d:getcontenttype>image/png</d:getcontenttype></d:prop></d:propstat></d:response>
+      </d:multistatus>`;
+      return new Response(xml, { status: 207 });
+    };
+    const storage = new StorageService();
+    const entries = await storage.listEntries('BASE/CLIENT');
+    assert.deepEqual(entries.map((entry) => [entry.name, entry.directory, entry.size, entry.contentType]), [
+      ['BRUTOS', true, undefined, undefined], ['logo.png', false, 123, 'image/png'],
+    ]);
+    await storage.copyRemote('BASE/CLIENT/logo.png', 'BASE/CLIENT/asset-id');
+    assert.deepEqual(methods, ['PROPFIND', 'COPY']);
+  } finally {
+    globalThis.fetch = realFetch;
+    Object.assign(config.nextcloud, previous);
+  }
+});
