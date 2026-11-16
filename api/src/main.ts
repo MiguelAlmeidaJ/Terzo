@@ -26,7 +26,7 @@ async function bootstrap() {
         return res.status(403).json({ error: 'csrf' });
       const origin = req.headers.origin;
       if (origin) {
-        const host = req.headers.host;
+        const host = config.trustProxy ? String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim() : req.headers.host;
         const scheme = config.trustProxy
           ? String(req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http')).split(',')[0].trim()
           : (req.secure ? 'https' : 'http');
