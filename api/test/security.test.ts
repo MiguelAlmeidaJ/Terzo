@@ -5,6 +5,8 @@ import { AccessService } from '../src/access.service';
 import { AssetAccessService } from '../src/asset-access.service';
 import { AssetsController } from '../src/assets.controller';
 import { DocumentsController } from '../src/documents.controller';
+import { AuthService } from '../src/auth.service';
+import { EventsService } from '../src/events.service';
 
 const access = new AccessService();
 const member = { id: 'u1', role: 'member', memberId: 'm1', name: 'Pessoa', email: 'p@example.com' } as any;
@@ -94,4 +96,33 @@ test('unlinked user can submit valid legacy access request including audit metad
     lastAt: new Date().toISOString(), createdBy: 'u2', updatedBy: 'u2', updatedAt: new Date().toISOString(),
   } }, {} as any);
   assert.equal(writes, 1);
+});
+
+
+test('disabled or mismatched team member is rejected by API guard', async () => {
+  const db = { document: { findUnique: async () => ({ data: { accountId: 'u1', disabled: true } }) } };
+  const auth = new AuthService(db as any);
+  (auth as any).require = async () => ({ user: member });
+  await assert.rejects(() => auth.requireReady({ method: 'POST', path: '/api/db/set', query: {} } as any), /member_disabled/);
+  await auth.requireReady({ method: 'GET', path: '/api/db', query: { coll: 'members' } } as any);
+  db.document.findUnique = async () => ({ data: { accountId: 'attacker', disabled: false } });
+  await assert.rejects(() => auth.requireReady({ method: 'GET', path: '/api/db', query: { coll: 'clients' } } as any), /member_disabled/);
+  db.document.findUnique = async () => ({ data: { accountId: 'u1', disabled: false } });
+  await auth.requireReady({ method: 'POST', path: '/api/db/set', query: {} } as any);
+});
+
+test('event-stream is closed when account is disabled in team directory', async () => {
+  let ended = false;
+  const prisma = {
+    session: { findUnique: async () => ({ user: member, ver: 1, expiresAt: BigInt(Date.now() + 60_000), lastSeen: BigInt(Date.now()) }) },
+    document: { findUnique: async () => ({ data: { accountId: 'u1', disabled: true } }) },
+  };
+  const events = new EventsService(prisma as any, access);
+  try {
+    events.add({ user: member, hash: 'hash', response: { write: () => {}, end: () => { ended = true; } } as any });
+    await (events as any).keepAlive();
+    assert.equal(ended, true);
+  } finally {
+    events.onModuleDestroy();
+  }
 });
