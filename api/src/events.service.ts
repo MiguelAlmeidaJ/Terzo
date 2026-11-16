@@ -3,7 +3,7 @@ import { Response } from 'express';
 import { User } from './generated/prisma/client';
 import { AccessService } from './access.service';
 import { PrismaService } from './prisma.service';
-import { now } from './config';
+import { config, now } from './config';
 
 type Client = { response: Response; user: User; hash: string };
 
@@ -33,7 +33,7 @@ export class EventsService implements OnModuleDestroy {
   private async keepAlive() {
     for (const client of this.clients) {
       const session = await this.prisma.session.findUnique({ where: { idHash: client.hash }, include: { user: true } });
-      if (!session || session.user.status !== 'active' || session.ver !== session.user.sessionVersion || now() > session.expiresAt) {
+      if (!session || session.user.status !== 'active' || session.ver !== session.user.sessionVersion || now() > session.expiresAt || now() - session.lastSeen > BigInt(config.idleHours * 3_600_000) || session.user.mustChange) {
         client.response.write('event: logout\ndata: {}\n\n'); client.response.end(); this.clients.delete(client);
       } else { client.user = session.user; client.response.write(': ping\n\n'); }
     }
