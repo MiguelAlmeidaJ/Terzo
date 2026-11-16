@@ -45,7 +45,7 @@ const waitForChrome = async () => {
 
 try {
   await waitForApplication();
-  const user = await prisma.user.findFirst({ where: { status: 'active', mustChange: false } });
+  const user = await prisma.user.findFirst({ where: { status: 'active', mustChange: false, role: { in: ['owner', 'editor'] } } });
   if (!user) throw new Error('Nenhum usuário ativo e pronto para a verificação.');
   const now = BigInt(Date.now());
   await prisma.session.create({ data: { idHash, userId: user.id, ver: user.sessionVersion, createdAt: now, lastSeen: now, expiresAt: now + 3_600_000n, ip: 'local-verification', ua: 'Chrome local verification' } });
@@ -81,9 +81,9 @@ try {
   await send('Network.setCookie', { name: 'terzo_sid', value: sid, url: 'http://localhost:3000' });
   await send('Page.navigate', { url: 'http://localhost:3000/' });
   await new Promise((resolve) => setTimeout(resolve, 8000));
-  const expression = `({loading:document.querySelector('#main')?.innerText.includes('Carregando dados'),sync:document.querySelector('#sync')?.innerText||'',heading:document.querySelector('#main h1')?.innerText||'',account:document.querySelector('#header-name')?.innerText||''})`;
+  const expression = `({heading:document.querySelector('.workspace-body h1')?.textContent||'',account:document.querySelector('.sidebar .account strong')?.textContent||'',modules:document.querySelectorAll('.module-card').length,login:location.pathname==='/login'})`;
   let evaluation = await send('Runtime.evaluate', { expression, returnByValue: true });
-  if (!evaluation.result.value.sync.includes('Sincronizado')) {
+  if (!evaluation.result.value.heading || evaluation.result.value.modules < 5) {
     await send('Page.reload', { ignoreCache: true });
     await new Promise((resolve) => setTimeout(resolve, 6000));
     evaluation = await send('Runtime.evaluate', { expression, returnByValue: true });
@@ -91,7 +91,7 @@ try {
   socket.close();
   const state = evaluation.result.value;
   console.log(JSON.stringify({ events, state }, null, 2));
-  if (events.length || state.loading || !state.heading || !state.account || !state.sync.includes('Sincronizado')) process.exitCode = 1;
+  if (events.length || state.login || !state.heading || !state.account || state.modules < 5) process.exitCode = 1;
 } finally {
   if (chrome && chrome.exitCode == null) {
     const stopped = new Promise((resolve) => { chrome.once('exit', resolve); setTimeout(resolve, 2000); });

@@ -28,6 +28,7 @@ const executionEnv = {
 };
 const run = (args) => spawnSync(command, args, { stdio: 'inherit', shell: process.platform === 'win32', env: executionEnv });
 for (const args of [
+  ['db:build'],
   ['db:migrate'],
   ['--filter', '@terzo/api', 'cli', 'migrate-nextcloud'],
 ]) {
