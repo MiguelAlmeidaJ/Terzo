@@ -9,9 +9,10 @@ import { DocumentsController } from './documents.controller';
 import { EventsService } from './events.service';
 import { PrismaService } from './prisma.service';
 import { StorageService } from './storage.service';
+import { AssetAccessService } from './asset-access.service';
 
 @Module({
   controllers: [AppController, AuthController, DocumentsController, AssetsController, AdminController],
-  providers: [PrismaService, AuthService, AccessService, EventsService, StorageService],
+  providers: [PrismaService, AuthService, AccessService, EventsService, StorageService, AssetAccessService],
 })
 export class AppModule {}
