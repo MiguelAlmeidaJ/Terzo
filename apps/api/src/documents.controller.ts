@@ -12,7 +12,7 @@ export class DocumentsController {
   constructor(private readonly prisma: PrismaService, private readonly auth: AuthService, private readonly access: AccessService, private readonly events: EventsService) {}
 
   @Get('db')
-  async list(@Query('coll') collection: string, @Req() req: Request) {
+  async list(@Query('coll') collection: string, @Req() req: Request): Promise<{ docs: Array<{ id: string; data: unknown }> }> {
     const { user } = await this.auth.requireReady(req);
     if (!this.access.validCollection(collection)) throw new BadRequestException('invalid_path');
     const rows = await this.prisma.document.findMany({ where: { collection } });
