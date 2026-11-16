@@ -156,3 +156,30 @@ test('login rejects oversized credentials before touching the database', async (
     /Usuário ou senha inválidos/,
   );
 });
+
+
+test('users cannot attach foreign private assets to public documents', async () => {
+  let persisted = 0;
+  let existing: unknown = null;
+  let assetOwner = 'u3';
+  const db = {
+    document: {
+      findUnique: async () => existing && { data: existing },
+      upsert: async () => { persisted++; },
+    },
+    asset: {
+      findMany: async () => [{ id: asset.id, owner: assetOwner }],
+    },
+  };
+  const controller = new DocumentsController(db as any, { requireReady: async () => ({ user: member }) } as any, access, { broadcast: () => {} } as any);
+  const save = (logoId: string) => controller.set({ coll: 'clients', id: 'c1', data: { logoId } }, {} as any);
+  await assert.rejects(() => save(asset.id), /permission_denied/);
+  assert.equal(persisted, 0);
+  assetOwner = member.id;
+  await save(asset.id);
+  assert.equal(persisted, 1);
+  assetOwner = 'u3';
+  existing = { logoId: asset.id };
+  await save(asset.id); // Updating an existing shared client must not drop its unchanged logo.
+  assert.equal(persisted, 2);
+});
