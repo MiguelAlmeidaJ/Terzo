@@ -1,32 +1,35 @@
 {
-  "name": "terzo-selfhost",
-  "version": "2.0.0",
+  "name": "terzo",
+  "version": "3.0.0",
   "private": true,
-  "workspaces": ["api", "web"],
+  "packageManager": "pnpm@10.19.0",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
-    "dev": "npm run dev --workspace api & npm run dev --workspace web",
-    "generate:legacy": "node scripts/generate-legacy.mjs",
-    "prisma:generate": "npm run prisma:generate --workspace api",
-    "prebuild": "npm run generate:legacy",
-    "build": "npm run build --workspace api && npm run build --workspace web",
-    "typecheck": "npm run typecheck --workspace api && npm run typecheck --workspace web",
-    "prisma:deploy:local": "npm run prisma:deploy --workspace api",
-    "db:migrate": "npm run prisma:deploy --workspace api",
+    "dev": "pnpm db:build && pnpm --parallel --filter @terzo/api --filter @terzo/web dev",
+    "build": "pnpm db:build && pnpm --filter @terzo/api build && pnpm --filter @terzo/web build",
+    "typecheck": "pnpm db:build && pnpm --filter @terzo/api typecheck && pnpm --filter @terzo/web typecheck",
+    "test": "pnpm db:build && pnpm --filter @terzo/api test",
+    "db:generate": "pnpm --filter @terzo/database generate",
+    "db:build": "pnpm db:generate && pnpm --filter @terzo/database build",
+    "db:migrate": "pnpm --filter @terzo/database migrate:deploy",
+    "prisma:generate": "pnpm db:generate",
+    "prisma:deploy:local": "pnpm db:migrate",
     "db:sync-password": "node scripts/postgres-sync-password.mjs",
     "db:backup": "node scripts/backup.mjs",
     "verify:local": "node scripts/verify-local.mjs",
-    "verify:storage": "node scripts/verify-storage.mjs",
+    "verify:storage": "pnpm db:build && node scripts/verify-storage.mjs",
     "nextcloud:migrate": "node scripts/nextcloud-migrate.mjs",
-    "nextcloud:reconcile": "npm run cli --workspace api -- reconcile-nextcloud",
-    "nextcloud:reconcile:dry": "npm run cli --workspace api -- reconcile-nextcloud --dry-run",
-    "nextcloud:verify": "npm run cli --workspace api -- verify-nextcloud",
+    "nextcloud:reconcile": "pnpm --filter @terzo/api cli reconcile-nextcloud",
+    "nextcloud:reconcile:dry": "pnpm --filter @terzo/api cli reconcile-nextcloud --dry-run",
+    "nextcloud:verify": "pnpm --filter @terzo/api cli verify-nextcloud",
     "pm2:start": "pm2 start ecosystem.config.cjs",
     "pm2:reload": "pm2 startOrReload ecosystem.config.cjs --update-env",
     "pm2:logs": "pm2 logs terzo-web terzo-api"
   },
-  "engines": { "node": ">=22" },
   "devDependencies": {
-    "dotenv": "^17.2.3",
-    "prisma": "^7.10.1"
+    "@terzo/database": "workspace:*",
+    "typescript": "^5.9.3"
   }
 }

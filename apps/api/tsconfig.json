@@ -16,5 +16,9 @@
     "skipLibCheck": true,
     "noImplicitAny": false,
     "strictPropertyInitialization": false
-  }
+  },
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }

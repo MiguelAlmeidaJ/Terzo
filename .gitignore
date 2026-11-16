@@ -1,42 +1,26 @@
-# Secrets and local configuration
+# Environment and credentials
 .env
 .env.*
 !.env.example
-
-# Dependencies
+# Workspace dependencies and generated assets
 node_modules/
 **/node_modules/
-
-# Generated clients and build output
-api/src/generated/prisma/
-web/public/legacy/index.html
-dist/
+packages/database/generated/
+packages/database/dist/
 **/dist/
-.next/
 **/.next/
 *.tsbuildinfo
-
-# Local data, backups and private migration exports
+# Local persistent data and backups
 data/
 export/
 /public/
-
-# Logs and process files
+# Cache and logs
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-*.pid
-.pids/
-
-# Test output and caches
 coverage/
 .cache/
 .turbo/
 tmp/
 .tmp/
-
-# Editors and operating systems
 .vscode/
 .idea/
 .DS_Store
