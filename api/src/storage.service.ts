@@ -106,7 +106,8 @@ export class StorageService {
     }, [200, 206, 404]);
     if (response.status === 404) return null;
     if (!response.body) throw new Error('O Nextcloud retornou um arquivo sem conteúdo.');
-    const length = Number(response.headers.get('content-length'));
+    const contentLength = response.headers.get('content-length');
+    const length = contentLength == null ? NaN : Number(contentLength);
     return {
       kind: 'remote',
       stream: Readable.fromWeb(response.body as any),
@@ -138,6 +139,7 @@ export class StorageService {
     const response = await fetch(`${root}/${encoded}`, {
       ...init,
       redirect: 'manual',
+      signal: AbortSignal.timeout(init.method === 'GET' ? 120_000 : 30_000),
       headers: {
         Authorization: `Basic ${Buffer.from(`${config.nextcloud.username}:${config.nextcloud.appPassword}`).toString('base64')}`,
         ...(init.headers || {}),
