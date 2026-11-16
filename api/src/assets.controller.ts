@@ -57,7 +57,7 @@ export class AssetsController {
 
   @Get('_blob/:id')
   async blob(@Param('id') id: string, @Req() req: Request, @Res() res: Response) {
-    await this.auth.requireReady(req);
+    const { user } = await this.auth.requireReady(req);
     const asset = await this.prisma.asset.findUnique({ where: { id } });
     if (!asset) throw new NotFoundException('not_found');
     if (!(await this.assetAccess.canRead(user, asset))) throw new ForbiddenException('permission_denied');
