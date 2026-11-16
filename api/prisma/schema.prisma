@@ -62,16 +62,37 @@ model Document {
 }
 
 model Asset {
-  id        String @id
-  owner     String?
-  mime      String
-  size      Int
-  name      String?
-  sha256    String?
-  remotePath String? @map("remote_path")
-  createdAt BigInt @map("created_at")
+  id             String  @id
+  owner          String?
+  mime           String
+  size           Int
+  name           String?
+  sha256         String?
+  clientId       String? @map("client_id")
+  remotePath     String? @map("remote_path")
+  remoteEtag     String? @map("remote_etag")
+  storageState   String  @default("local") @map("storage_state")
+  storageError   String? @map("storage_error")
+  lastVerifiedAt BigInt? @map("last_verified_at")
+  createdAt      BigInt  @map("created_at")
 
+  @@index([clientId])
+  @@index([storageState])
   @@map("assets")
+}
+
+model ClientStorageBinding {
+  clientId       String  @id @map("client_id")
+  folderName     String  @map("folder_name")
+  folderPath     String  @unique @map("folder_path")
+  status         String  @default("active")
+  lastVerifiedAt BigInt? @map("last_verified_at")
+  lastError      String? @map("last_error")
+  createdAt      BigInt  @map("created_at")
+  updatedAt      BigInt  @map("updated_at")
+
+  @@index([status])
+  @@map("client_storage_bindings")
 }
 
 model Audit {

@@ -98,7 +98,7 @@ async function cfAddFiles(id,list){const c=byId('calendars',id);if(!c||!cfCanWor
  if(big.length)toast(big.map(f=>f.name).join(', ')+': acima de '+CF_MAXMB+' MB. Envie como link.');if(!ok.length)return;
  if(!assets){toast('O envio de arquivos não está disponível nesta visualização.');return}
  const mm=myMember();const added=[];const fail=[];
- for(const f of ok){try{const r=await assets.upload(f);added.push({assetId:r.id,name:f.name,type:r.contentType||f.type,size:r.sizeBytes||f.size,by:mm?.id||'',at:new Date().toISOString()})}catch(e){fail.push(f.name)}}
+ for(const f of ok){try{const r=await assets.upload(f,{clientId:c.clientId});added.push({assetId:r.id,name:f.name,type:r.contentType||f.type,size:r.sizeBytes||f.size,by:mm?.id||'',at:new Date().toISOString()})}catch(e){fail.push(f.name)}}
  if(fail.length)toast('Não foi possível anexar: '+fail.join(', ')+'. Formatos aceitos: imagem, vídeo, PDF ou texto. Para arquivos de design, use link.');
  if(!added.length)return;const c2=byId('calendars',id);const d=c2.draft&&c2.draft.stage===c2.stage?c2.draft.files||[]:[];
  await calSave(c2,{draft:{stage:c2.stage,files:[...d,...added]}});toast(added.length+' arquivo'+(added.length>1?'s anexados':' anexado'))}

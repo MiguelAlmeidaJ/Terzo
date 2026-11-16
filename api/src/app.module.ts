@@ -10,9 +10,11 @@ import { EventsService } from './events.service';
 import { PrismaService } from './prisma.service';
 import { StorageService } from './storage.service';
 import { AssetAccessService } from './asset-access.service';
+import { StorageController } from './storage.controller';
+import { NextcloudReconciliationService } from './nextcloud-reconciliation.service';
 
 @Module({
-  controllers: [AppController, AuthController, DocumentsController, AssetsController, AdminController],
-  providers: [PrismaService, AuthService, AccessService, EventsService, StorageService, AssetAccessService],
+  controllers: [AppController, AuthController, DocumentsController, AssetsController, AdminController, StorageController],
+  providers: [PrismaService, AuthService, AccessService, EventsService, StorageService, AssetAccessService, NextcloudReconciliationService],
 })
 export class AppModule {}

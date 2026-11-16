@@ -8,6 +8,7 @@ import { DocumentsController } from '../src/documents.controller';
 import { AuthService } from '../src/auth.service';
 import { AuthController } from '../src/auth.controller';
 import { EventsService } from '../src/events.service';
+import { StorageController } from '../src/storage.controller';
 
 const access = new AccessService();
 const member = { id: 'u1', role: 'member', memberId: 'm1', name: 'Pessoa', email: 'p@example.com' } as any;
@@ -182,4 +183,35 @@ test('users cannot attach foreign private assets to public documents', async () 
   existing = { logoId: asset.id };
   await save(asset.id); // Updating an existing shared client must not drop its unchanged logo.
   assert.equal(persisted, 2);
+});
+
+test('storage monitoring and reconciliation are restricted to administrators', async () => {
+  let called = false;
+  const reconciliation = { status: async () => { called = true; return {}; } };
+  const memberController = new StorageController(
+    { requireReady: async () => ({ user: member }) } as any, access, {} as any, reconciliation as any,
+  );
+  await assert.rejects(() => memberController.status({} as any), /permission_denied/);
+  assert.equal(called, false);
+
+  const ownerController = new StorageController(
+    { requireReady: async () => ({ user: owner }) } as any, access, {} as any, reconciliation as any,
+  );
+  await ownerController.status({} as any);
+  assert.equal(called, true);
+});
+
+test('upload cannot claim an unknown client folder', async () => {
+  let stored = false;
+  const prisma = { document: { findUnique: async () => null } };
+  const storage = { putAsset: async () => { stored = true; } };
+  const controller = new AssetsController(
+    prisma as any, { requireReady: async () => ({ user: member }) } as any,
+    access, storage as any, {} as any,
+  );
+  const png = Buffer.from('89504e470d0a1a0a00000000', 'hex');
+  await assert.rejects(() => controller.upload({
+    headers: { 'content-type': 'image/png', 'x-client-id': 'client-missing' }, body: png,
+  } as any, {} as any), /permission_denied/);
+  assert.equal(stored, false);
 });

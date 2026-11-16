@@ -24,24 +24,37 @@ export class AssetsController {
     if (body.length > config.maxUploadMB * 1_048_576) throw new BadRequestException('too_large');
     if (!this.sniff(mime, body)) throw new UnsupportedMediaTypeException('content_mismatch');
     const id = randomBytes(16).toString('hex');
-    const remotePath = await this.storage.putAsset(id, body);
+    const clientId = String(req.headers['x-client-id'] || '').trim() || null;
+    let destination: string | undefined;
+    if (clientId) {
+      if (!/^(?!\.\.?$)[A-Za-z0-9_\-.~:@+]{1,200}$/.test(clientId)) throw new BadRequestException('invalid_client');
+      const client = await this.prisma.document.findUnique({ where: { collection_id: { collection: 'clients', id: clientId } } });
+      if (!client || !this.access.can(user, `clients/${clientId}`, 'read')) throw new ForbiddenException('permission_denied');
+      const binding = await this.prisma.clientStorageBinding.findUnique({ where: { clientId } });
+      if (binding?.status === 'active') destination = this.storage.assetPath(binding.folderPath, id);
+    }
+    const stored = await this.storage.putAsset(id, body, destination);
     let decodedName = '';
     try { decodedName = decodeURIComponent(String(req.headers['x-file-name'] || '')); } catch { decodedName = 'arquivo'; }
     const name = decodedName.replace(/[\\/\r\n"]/g, '_').slice(0, 200);
     try {
-      await this.prisma.asset.create({ data: { id, owner: user.id, mime, size: body.length, name, sha256: sha256(body), remotePath, createdAt: now() } });
+      await this.prisma.asset.create({ data: {
+        id, owner: user.id, mime, size: body.length, name, sha256: sha256(body), clientId,
+        remotePath: stored.remotePath, remoteEtag: stored.remoteEtag, storageState: stored.state,
+        storageError: stored.error, lastVerifiedAt: stored.state === 'synced' ? now() : null, createdAt: now(),
+      } });
     } catch (error) {
-      await this.storage.deleteAsset(id, remotePath).catch(() => undefined);
+      await this.storage.deleteAsset(id, stored.remotePath).catch(() => undefined);
       throw error;
     }
-    return { id, url: `/_blob/${id}`, contentType: mime, sizeBytes: body.length };
+    return { id, url: `/_blob/${id}`, contentType: mime, sizeBytes: body.length, storageState: stored.state };
   }
 
   @Get('api/assets')
   async list(@Req() req: Request) {
     const { user } = await this.auth.requireReady(req);
     const assets = await this.prisma.asset.findMany({ where: this.access.level(user) >= 3 ? {} : { owner: user.id } });
-    return { assets: assets.map((asset) => ({ id: asset.id, url: `/_blob/${asset.id}`, contentType: asset.mime, sizeBytes: asset.size, name: asset.name })) };
+    return { assets: assets.map((asset) => ({ id: asset.id, url: `/_blob/${asset.id}`, contentType: asset.mime, sizeBytes: asset.size, name: asset.name, clientId: asset.clientId, storageState: asset.storageState })) };
   }
 
   @Delete('api/assets/:id')

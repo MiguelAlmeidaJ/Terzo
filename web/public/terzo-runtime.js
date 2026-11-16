@@ -52,7 +52,9 @@ var db={collection:function(p){return collection(String(p))},doc:function(p){var
 /* ---------------- arquivos ---------------- */
 var assets={
  upload:async function(blob,opts){var type=(opts&&opts.type)||blob.type||'application/octet-stream';
-  var r=await api('/api/assets',{method:'POST',body:blob,headers:{'Content-Type':type,'X-File-Name':encodeURIComponent(blob.name||'arquivo')}});return r},
+  var headers={'Content-Type':type,'X-File-Name':encodeURIComponent(blob.name||'arquivo')};
+  if(opts&&opts.clientId)headers['X-Client-Id']=String(opts.clientId);
+  var r=await api('/api/assets',{method:'POST',body:blob,headers:headers});return r},
  delete:async function(id){await api('/api/assets/'+encodeURIComponent(id),{method:'DELETE'})},
  list:async function(){var r=await api('/api/assets');return{assets:r.assets,usage:{}}}};
 

@@ -26,6 +26,17 @@ const chromePath = process.env.CHROME_PATH || (process.platform === 'win32'
 const port = 9223;
 let chrome;
 
+const waitForApplication = async () => {
+  for (let attempt = 0; attempt < 60; attempt++) {
+    try {
+      const response = await fetch('http://localhost:3000/healthz', { cache: 'no-store' });
+      if (response.ok && (await response.json()).ok) return;
+    } catch {}
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  throw new Error('A aplicação não ficou pronta na porta 3000.');
+};
+
 const waitForChrome = async () => {
   for (let attempt = 0; attempt < 30; attempt++) {
     try { return await (await fetch(`http://127.0.0.1:${port}/json`)).json(); } catch { await new Promise((resolve) => setTimeout(resolve, 250)); }
@@ -34,6 +45,7 @@ const waitForChrome = async () => {
 };
 
 try {
+  await waitForApplication();
   const user = await prisma.user.findFirst({ where: { status: 'active', mustChange: false } });
   if (!user) throw new Error('Nenhum usuário ativo e pronto para a verificação.');
   const now = BigInt(Date.now());
@@ -70,7 +82,13 @@ try {
   await send('Network.setCookie', { name: 'terzo_sid', value: sid, url: 'http://localhost:3000' });
   await send('Page.navigate', { url: 'http://localhost:3000/' });
   await new Promise((resolve) => setTimeout(resolve, 8000));
-  const evaluation = await send('Runtime.evaluate', { expression: `({loading:document.querySelector('#main')?.innerText.includes('Carregando dados'),sync:document.querySelector('#sync')?.innerText||'',heading:document.querySelector('#main h1')?.innerText||'',account:document.querySelector('#header-name')?.innerText||''})`, returnByValue: true });
+  const expression = `({loading:document.querySelector('#main')?.innerText.includes('Carregando dados'),sync:document.querySelector('#sync')?.innerText||'',heading:document.querySelector('#main h1')?.innerText||'',account:document.querySelector('#header-name')?.innerText||''})`;
+  let evaluation = await send('Runtime.evaluate', { expression, returnByValue: true });
+  if (!evaluation.result.value.sync.includes('Sincronizado')) {
+    await send('Page.reload', { ignoreCache: true });
+    await new Promise((resolve) => setTimeout(resolve, 6000));
+    evaluation = await send('Runtime.evaluate', { expression, returnByValue: true });
+  }
   socket.close();
   const state = evaluation.result.value;
   console.log(JSON.stringify({ events, state }, null, 2));

@@ -88,7 +88,7 @@ function apSubmitForm(files){const multi=files&&files.length>1;const mm=myMember
    const made=[];
    if(!files){const id=uid();await put('creatives',id,{...base,createdAt:today(),ts:Date.now()});made.push({id,title:v.title})}
    else for(let i=0;i<files.length;i++){const f=files[i];toast(`Enviando ${i+1} de ${files.length}…`);
-    try{const r=await assets.upload(f);const id=uid();const title=multi?f.name.replace(/\.[^.]+$/,''):v.title;
+    try{const r=await assets.upload(f,{clientId:v.clientId});const id=uid();const title=multi?f.name.replace(/\.[^.]+$/,''):v.title;
      await put('creatives',id,{...base,title,assetId:r.id,contentType:r.contentType,sizeBytes:r.sizeBytes,fileName:f.name,createdAt:today(),ts:Date.now()});made.push({id,title})}
     catch(e){const m={too_large:'é maior que 20 MB',unsupported_type:'tem um formato não aceito',quota_or_state:'não coube: o espaço da biblioteca acabou',rate_limited:'não foi enviado: muitos envios seguidos, tente em instantes',not_granted:'não foi enviado: seu acesso não permite upload'}[e?.code]||'não foi enviado';toast(`“${f.name}” ${m}.`);await new Promise(r=>setTimeout(r,1800))}}
    if(!made.length)throw new Error('none');
@@ -105,7 +105,7 @@ function apResendForm(id,file){const c=byId('creatives',id);if(!c)return;const l
  formModal({title:(file?'Nova versão · ':'Reenviar para aprovação · ')+(c.title||'peça'),values:{link:c.link||'',changes:''},fields,back:()=>byId('creatives',id)&&creativeDetail(id),
   onSave:async v=>{if(v.link&&!/^https?:\/\//i.test(v.link)){toast('O link precisa começar com http:// ou https://');throw new Error('link')}
    const cur=byId('creatives',id);const rec={...cur,status:'Em aprovação',statusAt:today(),review:apReq(cur,{changes:v.changes}),sentAt:'',sentBy:''};
-   if(file){toast('Enviando a nova versão…');let r;try{r=await assets.upload(file)}catch(e){toast(e?.code==='too_large'?'O arquivo passa de 20 MB. Use o link.':'Não foi possível enviar o arquivo.');throw e}
+   if(file){toast('Enviando a nova versão…');let r;try{r=await assets.upload(file,{clientId:cur.clientId})}catch(e){toast(e?.code==='too_large'?'O arquivo passa de 20 MB. Use o link.':'Não foi possível enviar o arquivo.');throw e}
     rec.versions=[...(cur.versions||[]),{assetId:cur.assetId||'',link:cur.link||'',contentType:cur.contentType||'',fileName:cur.fileName||'',round:cur.review?.round||1,at:cur.review?.requestedAt||cur.createdAt||''}].slice(-10);
     Object.assign(rec,{assetId:r.id,contentType:r.contentType,sizeBytes:r.sizeBytes,fileName:file.name,link:''})}
    else if(v.link&&v.link!==cur.link){rec.versions=[...(cur.versions||[]),{link:cur.link,round:cur.review?.round||1,at:cur.review?.requestedAt||''}].slice(-10);rec.link=v.link}
