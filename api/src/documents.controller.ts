@@ -26,6 +26,7 @@ export class DocumentsController {
     if (!this.access.validCollection(body?.coll) || !segmentPattern.test(String(body?.id || '')) || !body?.data || typeof body.data !== 'object' || Array.isArray(body.data)) throw new BadRequestException('invalid_argument');
     if (!this.access.can(user, `${body.coll}/${body.id}`, 'write')) throw new ForbiddenException('permission_denied');
     if (JSON.stringify(body.data).length > 1024 * 1024) throw new BadRequestException('too_large');
+    await this.validateSensitiveWrite(user, body.coll, body.id, body.data);
     await this.prisma.document.upsert({
       where: { collection_id: { collection: body.coll, id: body.id } },
       create: { collection: body.coll, id: body.id, data: body.data as Prisma.InputJsonValue, updatedAt: now(), updatedBy: user.id },
@@ -40,8 +41,31 @@ export class DocumentsController {
     const { user } = await this.auth.requireReady(req);
     if (!this.access.validCollection(body?.coll) || !segmentPattern.test(String(body?.id || ''))) throw new BadRequestException('invalid_argument');
     if (!this.access.can(user, `${body.coll}/${body.id}`, 'write')) throw new ForbiddenException('permission_denied');
+    if (body.coll === 'members' && this.access.level(user) < 3) throw new ForbiddenException('permission_denied');
     await this.prisma.document.deleteMany({ where: { collection: body.coll, id: body.id } });
     this.events.broadcast(body.coll, body.id, null); return { ok: true };
+  }
+
+  private async validateSensitiveWrite(user: any, collection: string, id: string, data: Record<string, unknown>) {
+    if (this.access.level(user) >= 3) return;
+    if (collection === 'access_req') {
+      if (id !== user.id || Object.keys(data).some((key) => !['name', 'email', 'at', 'lastAt'].includes(key))
+        || data.name !== user.name || data.email !== user.email
+        || (data.at !== undefined && typeof data.at !== 'string')
+        || (data.lastAt !== undefined && typeof data.lastAt !== 'string'))
+        throw new ForbiddenException('permission_denied');
+    }
+    if (collection === 'members') {
+      if (id !== user.memberId) throw new ForbiddenException('permission_denied');
+      const current = await this.prisma.document.findUnique({ where: { collection_id: { collection, id } } });
+      if (!current || (current.data as any)?.accountId !== user.id) throw new ForbiddenException('permission_denied');
+      const { lastSeen: _oldSeen, ...before } = current.data as Record<string, unknown>;
+      const { lastSeen, ...after } = data;
+      const timestamp = typeof lastSeen === 'string' ? Date.parse(lastSeen) : NaN;
+      if (JSON.stringify(before) !== JSON.stringify(after) ||
+        !Number.isFinite(timestamp) || Math.abs(Date.now() - timestamp) > 5 * 60_000)
+        throw new ForbiddenException('permission_denied');
+    }
   }
 
   @Get('events')
