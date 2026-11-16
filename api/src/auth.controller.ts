@@ -18,6 +18,8 @@ export class AuthController {
   async login(@Body() body: any, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const username = String(body?.username || '').trim().toLowerCase();
     const password = String(body?.password || '');
+    if (!/^[a-z0-9._-]{3,40}$/.test(username) || !password || password.length > 200)
+      throw new UnauthorizedException('Usuário ou senha inválidos.');
     const forwarded = req.headers['x-forwarded-for'];
     const ip = config.trustProxy && forwarded ? String(forwarded).split(',')[0].trim() : req.socket.remoteAddress || '';
     await this.prisma.loginAttempt.deleteMany({ where: { at: { lt: now() - windowMs } } });
@@ -62,7 +64,9 @@ export class AuthController {
   @HttpCode(200)
   async password(@Body() body: any, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const { user } = await this.auth.require(req);
-    if (!verifyPassword(String(body?.current || ''), user.passHash)) throw new BadRequestException('A senha atual não confere.');
+    const current = String(body?.current || '');
+    if (!current || current.length > 200 || !verifyPassword(current, user.passHash))
+      throw new BadRequestException('A senha atual não confere.');
     const next = body?.next;
     if (typeof next !== 'string' || next.length < 10 || next.length > 200) throw new BadRequestException('A nova senha precisa ter de 10 a 200 caracteres.');
     if (next === body.current) throw new BadRequestException('A nova senha precisa ser diferente da atual.');
