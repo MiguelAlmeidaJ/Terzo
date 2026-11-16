@@ -25,12 +25,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: pnpm
 
       - name: Install workspace
-        run: pnpm install --no-frozen-lockfile
-
-      - name: Export generated lockfile for initial migration
-        run: node -e "const x=require('fs').readFileSync('pnpm-lock.yaml').toString('base64');for(let i=0;i<x.length;i+=4000)console.log('LOCK_CHUNK',i/4000,x.slice(i,i+4000))"
+        run: pnpm install --frozen-lockfile
 
       - name: Audit production dependencies
         run: pnpm audit --prod
