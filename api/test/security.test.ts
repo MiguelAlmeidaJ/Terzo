@@ -70,7 +70,8 @@ test('member self-update only allows their lastSeen to change', async () => {
   const set = (data: unknown) => controller.set({ coll: 'members', id: 'm1', data }, {} as any);
   await assert.rejects(() => set({ ...row, admin: true, lastSeen: new Date().toISOString() }), /permission_denied/);
   await assert.rejects(() => set({ ...row, lastSeen: '2020-01-01T00:00:00.000Z' }), /permission_denied/);
-  await set({ ...row, lastSeen: new Date().toISOString() });
+  await set({ ...row, lastSeen: new Date().toISOString(), updatedBy: 'u1', updatedAt: new Date().toISOString() });
+  await assert.rejects(() => set({ ...row, lastSeen: new Date().toISOString(), updatedBy: 'u3', updatedAt: new Date().toISOString() }), /permission_denied/);
   assert.equal(writes, 1);
 });
 
@@ -81,4 +82,16 @@ test('unlinked users cannot forge other users access requests', async () => {
   await assert.rejects(() => controller.set({ coll: 'access_req', id: 'u2', data: {
     name: outsider.name, email: outsider.email, ignored: false,
   } }, {} as any), /permission_denied/);
+});
+
+
+test('unlinked user can submit valid legacy access request including audit metadata', async () => {
+  let writes = 0;
+  const prisma = { document: { upsert: async () => { writes++; } } };
+  const controller = new DocumentsController(prisma as any, { requireReady: async () => ({ user: outsider }) } as any, access, { broadcast: () => {} } as any);
+  await controller.set({ coll: 'access_req', id: 'u2', data: {
+    name: outsider.name, email: outsider.email, at: new Date().toISOString(),
+    lastAt: new Date().toISOString(), createdBy: 'u2', updatedBy: 'u2', updatedAt: new Date().toISOString(),
+  } }, {} as any);
+  assert.equal(writes, 1);
 });
