@@ -6,6 +6,7 @@ import { AssetAccessService } from '../src/asset-access.service';
 import { AssetsController } from '../src/assets.controller';
 import { DocumentsController } from '../src/documents.controller';
 import { AuthService } from '../src/auth.service';
+import { AuthController } from '../src/auth.controller';
 import { EventsService } from '../src/events.service';
 
 const access = new AccessService();
@@ -140,4 +141,18 @@ test('disabling a member immediately kicks their live stream', async () => {
   const controller = new DocumentsController(db as any, auth as any, access, events as any);
   await controller.set({ coll: 'members', id: 'm1', data: { accountId: 'u1', disabled: true } }, {} as any);
   assert.deepEqual(kicked, ['u1']);
+});
+
+
+test('login rejects oversized credentials before touching the database', async () => {
+  const prisma = { loginAttempt: { deleteMany: async () => { throw new Error('should not query database'); } } };
+  const auth = new AuthController(prisma as any, {} as any, {} as any);
+  await assert.rejects(
+    () => auth.login({ username: 'u'.repeat(200), password: 'password' }, { headers: {} } as any, {} as any),
+    /Usuário ou senha inválidos/,
+  );
+  await assert.rejects(
+    () => auth.login({ username: 'regular', password: 'p'.repeat(500_000) }, { headers: {} } as any, {} as any),
+    /Usuário ou senha inválidos/,
+  );
 });
