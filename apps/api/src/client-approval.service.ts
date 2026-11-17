@@ -2,7 +2,6 @@ import { BadRequestException, ConflictException, ForbiddenException, GoneExcepti
 import { randomBytes, createHash } from 'node:crypto';
 import { ClientApproval, Prisma, User } from '@terzo/database';
 import { PrismaService } from './prisma.service';
-import { AuthService } from './auth.service';
 import { AccessService } from './access.service';
 import { StorageService } from './storage.service';
 
@@ -42,7 +41,6 @@ const hash = (token: string) => createHash('sha256').update(token).digest('hex')
 export class ClientApprovalService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly auth: AuthService,
     private readonly access: AccessService,
     readonly storage: StorageService,
   ) {}
@@ -84,7 +82,6 @@ export class ClientApprovalService {
       const assetId = safeText(data.assetId, 64);
       const url = safeHttpsUrl(data.link);
       return [
-        ...(TOKEN_PATTERN.test(assetId.padEnd(64, 'x')) ? [] : []), // intentionally empty; assets checked by 32-char rule below
         ...( /^[a-f0-9]{32}$/.test(assetId) ? [{ assetId, name: safeText(data.fileName || data.title, 160) || 'Arte' }] : []),
         ...(url ? [{ url, name: safeText(data.title, 160) || 'Abrir arte' }] : []),
       ];
@@ -224,7 +221,7 @@ export class ClientApprovalService {
     const row = await this.getRecord(token);
     await this.assertCurrent(row);
     return {
-      id: row.id, status: row.status, title: row.title, snapshot: row.snapshot as ApprovalSnapshot,
+      id: row.id, status: row.status, title: row.title, snapshot: row.snapshot as unknown as ApprovalSnapshot,
       createdAt: Number(row.createdAt), expiresAt: Number(row.expiresAt),
       decidedAt: row.decidedAt ? Number(row.decidedAt) : null,
       decidedBy: row.decidedBy || '', comment: row.comment || '',
@@ -250,7 +247,7 @@ export class ClientApprovalService {
     await this.prisma.audit.create({
       data: { at: time, actor: 'client:' + name.slice(0, 80), action: 'client_approval_' + decision,
         target: row.kind + ':' + row.targetId, details: { approvalId: row.id, clientId: row.clientId } },
-    });
+    }).catch(() => undefined); // Decisão já confirmada: falha no log não deve causar reenvio.
     return { ok: true, status: decision };
   }
 
