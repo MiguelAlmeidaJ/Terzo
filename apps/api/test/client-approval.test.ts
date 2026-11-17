@@ -66,7 +66,7 @@ function setup(kind: 'calendar' | 'creative' = 'calendar') {
     $transaction: async (callback: any) => callback(prisma),
   };
   const service = new ClientApprovalService(prisma as any, new AccessService(), {} as any);
-  return { service, items, data, get audits() { return audits; }, touch: () => { sourceUpdatedAt++; } };
+  return { service, prisma, items, data, get audits() { return audits; }, touch: () => { sourceUpdatedAt++; } };
 }
 
 test('calendar approval is an immutable snapshot with only permitted client assets', async () => {
@@ -150,4 +150,23 @@ test('calendar without any content or approved file cannot be sent for client va
   scope.data.posts[0].title = 'Postagem da semana';
   const result = await scope.service.create(owner, { kind: 'calendar', targetId: 'target1' });
   assert.match(result.token, /^[a-f0-9]{64}$/);
+});
+
+test('calendar can include a linked approved artwork; changing the artwork invalidates the link', async () => {
+  const scope = setup('calendar');
+  (scope.data as any).posts[0].creativeId = 'creative1';
+  let updatedAt = 22n;
+  scope.prisma.document.findMany = async () => [{
+    id: 'creative1', updatedAt, data: {
+      clientId: 'client1', status: 'Liberado para o cliente',
+      assetId: fileId, title: 'Arte aprovada'
+    }
+  }];
+  const { token } = await scope.service.create(owner, { kind: 'calendar', targetId: 'target1' });
+  const initial = await scope.service.publicView(token);
+  assert.equal(initial.snapshot.creativeVersions?.length, 1);
+  assert.equal(initial.snapshot.files.filter((file: any) => file.assetId === fileId).length, 1);
+  updatedAt = 23n;
+  await assert.rejects(() => scope.service.publicView(token), /linked_art_updated_request_new_link/);
+  await assert.rejects(() => scope.service.decide(token, { decision: 'approved', name: 'Maria' }), /linked_art_updated_request_new_link/);
 });
