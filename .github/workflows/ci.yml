@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [master, main]
+    branches: [main, monorepo]
   pull_request:
 
 permissions:
@@ -11,29 +11,36 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-
+    timeout-minutes: 20
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.19.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
+          cache: pnpm
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install workspace
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify monorepo structure
+        run: pnpm architecture:check
 
       - name: Audit production dependencies
-        run: npm audit --omit=dev
+        run: pnpm audit --prod
 
       - name: Type-check
-        run: npm run typecheck
+        run: pnpm typecheck
 
-      - name: Security regression tests
-        run: npm run test --workspace api
+      - name: Unit and security tests
+        run: pnpm test
 
-      - name: Build
-        run: npm run build
+      - name: Build monorepo
+        run: pnpm build

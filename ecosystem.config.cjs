@@ -1,52 +1,43 @@
 const fs = require('node:fs');
 const path = require('node:path');
-
 const root = __dirname;
 
 function readEnv(file) {
   if (!fs.existsSync(file)) return {};
   const values = {};
-  for (const sourceLine of fs.readFileSync(file, 'utf8').split(/\r?\n/)) {
-    const line = sourceLine.trim();
-    if (!line || line.startsWith('#')) continue;
-    const match = line.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
+  for (const line of fs.readFileSync(file, 'utf8').split(/\r?\n/)) {
+    const match = line.trim().match(/^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
     if (!match) continue;
     let value = match[2].trim();
-    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'")))
       value = value.slice(1, -1);
-    }
     values[match[1]] = value;
   }
   return values;
 }
 
-const fileEnv = readEnv(path.join(root, '.env'));
-const value = (name, fallback) => process.env[name] || fileEnv[name] || fallback;
+const env = readEnv(path.join(root, '.env'));
+const value = (key, fallback) => process.env[key] || env[key] || fallback;
+if (!value('DATABASE_URL', '')) throw new Error('DATABASE_URL é obrigatória.');
 const apiPort = value('API_PORT', '3001');
 const webPort = value('WEB_PORT', '3000');
-const databaseUrl = value('DATABASE_URL', '');
-if (!databaseUrl) throw new Error('DATABASE_URL é obrigatória no arquivo .env.');
-
-const shared = {
-  NODE_ENV: 'production',
-};
 
 module.exports = {
   apps: [
     {
       name: 'terzo-api',
-      cwd: root,
-      script: path.join(root, 'api', 'dist', 'main.js'),
+      cwd: path.join(root, 'apps', 'api'),
+      script: path.join(root, 'apps', 'api', 'dist', 'main.js'),
       instances: 1,
       exec_mode: 'fork',
       autorestart: true,
       max_memory_restart: '600M',
       time: true,
       env: {
-        ...shared,
+        NODE_ENV: 'production',
         PORT: apiPort,
         HOST: value('API_HOST', '127.0.0.1'),
-        DATABASE_URL: databaseUrl,
+        DATABASE_URL: value('DATABASE_URL', ''),
         DATA_DIR: path.resolve(root, value('DATA_DIR', './data')),
         COOKIE_SECURE: value('COOKIE_SECURE', 'false'),
         TRUST_PROXY: value('TRUST_PROXY', '0'),
@@ -70,19 +61,15 @@ module.exports = {
     },
     {
       name: 'terzo-web',
-      cwd: root,
-      script: require.resolve('next/dist/bin/next'),
-      args: `start web -H 127.0.0.1 -p ${webPort}`,
+      cwd: path.join(root, 'apps', 'web'),
+      script: path.join(root, 'apps', 'web', 'node_modules', 'next', 'dist', 'bin', 'next'),
+      args: `start -H 127.0.0.1 -p ${webPort}`,
       instances: 1,
       exec_mode: 'fork',
       autorestart: true,
       max_memory_restart: '600M',
       time: true,
-      env: {
-        ...shared,
-        PORT: webPort,
-        API_INTERNAL_URL: value('API_INTERNAL_URL', `http://127.0.0.1:${apiPort}`),
-      },
+      env: { NODE_ENV: 'production', API_INTERNAL_URL: value('API_INTERNAL_URL', `http://127.0.0.1:${apiPort}`) },
     },
   ],
 };
