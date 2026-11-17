@@ -54,6 +54,6 @@ for (const file of files) {
   assert.ok(!contents.includes("'./generated/prisma/client'"), 'Import Prisma antigo: ' + file);
   assert.ok(!contents.includes("'./database'"), 'Import do adaptador antigo: ' + file);
 }
-assert.ok(readdirSync(locate('apps/web/legacy-src/modulos')).filter((name) => /^crm_.*\\.js$/.test(name)).length >= 10,
+assert.ok(readdirSync(locate('apps/web/legacy-src/modulos')).filter((name) => /^crm_.*\.js$/.test(name)).length >= 10,
   'Módulos da interface original precisam estar disponíveis para a geração');
 console.log('Monorepo pnpm: estrutura, histórico de migrations e imports verificados.');
