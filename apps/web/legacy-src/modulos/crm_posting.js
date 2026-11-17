@@ -35,7 +35,8 @@ function calPostingPanel(c) {
     '<span class="post-body"><b>'+esc(p.title||'Postagem planejada')+'</b>'+
     '<small>'+esc(p.kind==='special'?'Data especial / campanha':'Postagem recorrente')+
     (p.movedFrom?' · realocada de '+esc(fD(p.movedFrom)):'')+(p.format?' · '+esc(p.format):'')+'</small>'+
-    (p.caption?'<p>'+esc(p.caption)+'</p>':'')+(p.notes?'<small>'+esc(p.notes)+'</small>':'')+'</span>'+
+    (p.caption?'<p>'+esc(p.caption)+'</p>':'')+(p.notes?'<small>'+esc(p.notes)+'</small>':'')+'</span>'+ 
+    (p.creativeId&&byId('creatives',p.creativeId)?'<button type="button" class="btn sm" data-act="open-creative" data-id="'+esc(p.creativeId)+'">Abrir arte</button>':'')+
     (can?'<button type="button" class="btn sm" data-act="ps-edit" data-id="'+esc(c.id)+'" data-post="'+esc(p.id)+'">Editar / realocar</button>':'')+'</div>'
   ).join('');
   return '<div class="sec post-section"><h3>Programação de postagens · '+posts.length+' publicações</h3>'+
@@ -48,12 +49,13 @@ function calPostingPanel(c) {
 function calPostForm(c,existing) {
   if (!calCanEdit(c) || c.stage==='entregue') { toast('Este calendário não pode ser editado.');return; }
   const isNew=!existing;
-  const values={date:c.month+'-01',kind:'special',title:'',caption:'',format:'',notes:'',...(existing||{})};
+  const values={date:c.month+'-01',kind:'special',title:'',caption:'',format:'',notes:'',creativeId:'',...(existing||{})};
   formModal({
     title:(isNew?'Adicionar postagem':'Editar / realocar postagem')+' · '+calMonthL(c.month),
     values,back:()=>calDetail(c.id),fields:[
       {k:'date',l:'Data da publicação',t:'date',req:1,full:1,hint:'Você pode mover a arte para qualquer dia deste mês, inclusive datas comemorativas.'},
       {k:'kind',l:'Tipo de publicação',t:'select',o:[{v:'regular',l:'Postagem recorrente'},{v:'special',l:'Data comemorativa / campanha'}]},
+      {k:'creativeId',l:'Vincular arte da biblioteca',t:'select',o:S.creatives.filter(x=>x.clientId===c.clientId).map(x=>({v:x.id,l:x.title||x.fileName||'Criativo'})),empty:'Sem arte vinculada',full:1,hint:'A postagem acompanha esta arte mesmo se a data for realocada. A prévia externa só mostrará artes já liberadas internamente.'},
       {k:'title',l:'Tema da arte',full:1,ph:'Ex.: Dia das Mães, campanha de produto'},
       {k:'format',l:'Formato',t:'select',o:[{v:'',l:'A definir'},{v:'Feed',l:'Feed'},{v:'Carrossel',l:'Carrossel'},{v:'Reels',l:'Reels'},{v:'Stories',l:'Stories'}]},
       {k:'caption',l:'Copy / legenda',t:'textarea',full:1},
@@ -66,7 +68,7 @@ function calPostForm(c,existing) {
       const posts=Array.isArray(current.posts)?[...current.posts]:[];
       const moved=existing && existing.date!==v.date;
       const item={id:existing?.id||uid(),date:v.date,kind:v.kind==='special'?'special':'regular',
-        title:v.title.slice(0,200),caption:v.caption.slice(0,3000),format:v.format,notes:v.notes.slice(0,1000)};
+        title:v.title.slice(0,200),caption:v.caption.slice(0,3000),format:v.format,notes:v.notes.slice(0,1000),creativeId:v.creativeId||''};
       if(existing?.movedFrom||moved)item.movedFrom=existing?.movedFrom||existing.date;
       if(existing){const at=posts.findIndex(p=>p.id===existing.id);if(at<0){toast('Esta postagem foi alterada por outra pessoa.');throw Error('outdated')}posts[at]=item}
       else posts.push(item);
