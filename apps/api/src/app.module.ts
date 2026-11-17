@@ -12,9 +12,11 @@ import { StorageService } from './storage.service';
 import { AssetAccessService } from './asset-access.service';
 import { StorageController } from './storage.controller';
 import { NextcloudReconciliationService } from './nextcloud-reconciliation.service';
+import { ClientApprovalService } from './client-approval.service';
+import { ClientApprovalController } from './client-approval.controller';
 
 @Module({
-  controllers: [AppController, AuthController, DocumentsController, AssetsController, AdminController, StorageController],
-  providers: [PrismaService, AuthService, AccessService, EventsService, StorageService, AssetAccessService, NextcloudReconciliationService],
+  controllers: [AppController, AuthController, DocumentsController, AssetsController, AdminController, StorageController, ClientApprovalController],
+  providers: [PrismaService, AuthService, AccessService, EventsService, StorageService, AssetAccessService, NextcloudReconciliationService, ClientApprovalService],
 })
 export class AppModule {}
