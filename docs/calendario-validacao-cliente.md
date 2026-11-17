@@ -6,7 +6,7 @@ Em **Clientes → Ficha → Editar cliente**, selecione os dias habituais de pub
 
 Nenhum dia é presumido: clientes antigos continuam sem frequência até a configuração. Na criação de calendário de um único cliente ou em **Gerar calendários do mês**, o sistema cria **uma postagem por ocorrência de cada dia marcado**, considerando o mês e os anos bissextos. Clientes sem dias configurados aparecem com orientação para completar o cadastro e não entram na geração em lote.
 
-Cada postagem tem data, tipo (**recorrente** ou **especial**), tema, formato, copy/legenda e observações. No detalhe do calendário, clique em **Editar / realocar** para mover uma arte dentro do mesmo mês (incluindo datas comemorativas) ou em **+ Postagem especial** para acrescentar uma publicação. As alterações não mudam os dias habituais do cliente. Calendários antigos podem adotar o plano por meio de **Gerar pelos dias cadastrados**.
+Cada postagem tem data, tipo (**recorrente** ou **especial**), tema, formato, copy/legenda, observações e **arte da Biblioteca de Criativos vinculada (opcional)**. Ao realocar a postagem, a associação à arte é mantida. No detalhe do calendário, clique em **Editar / realocar** para mover uma arte dentro do mesmo mês (incluindo datas comemorativas) ou em **+ Postagem especial** para acrescentar uma publicação. As alterações não mudam os dias habituais do cliente. Calendários antigos podem adotar o plano por meio de **Gerar pelos dias cadastrados**.
 
 Uma mudança no calendário depois de uma validação interna final invalida o registro de aprovação interna (`approvedAt`), exigindo nova validação da liderança. Uma mudança no documento também torna antigos links externos inválidos.
 
@@ -15,7 +15,7 @@ Uma mudança no calendário depois de uma validação interna final invalida o r
 A validação **do cliente** é independente da esteira **interna** de Aprovações da equipe.
 
 1. Abra o calendário ou a ficha de uma arte avulsa e clique em **Validação do cliente**.
-2. Confirme o material. Calendários mostram postagens datadas e arquivos previamente aprovados na etapa final; artes avulsas mostram a peça enviada ou seu link HTTPS.
+2. Confirme o material. Calendários mostram postagens datadas, arquivos previamente aprovados na etapa final e artes vinculadas que já tenham sido liberadas pela aprovação interna; artes avulsas mostram a peça enviada ou seu link HTTPS. É necessário haver conteúdo real (ao menos um tema/legenda ou arquivo final) para compartilhar o calendário.
 3. Clique em **Gerar link de aprovação** e copie o endereço na mesma hora. Envie-o pelo canal que já utiliza com o cliente, como WhatsApp ou e-mail.
 4. Sem login no Terzo, o cliente acessa a página, vê **somente o material daquele link** e escolhe **Aprovar material** ou **Solicitar ajustes**. Para registrar a resposta, informa nome; o motivo dos ajustes é obrigatório quando aplicável.
 5. O retorno fica na fila **Validação do Cliente** e no histórico da própria peça ou calendário (botão **Validação do cliente**). O status pode ser `Aguardando cliente`, `Aprovado pelo cliente`, `Cliente pediu ajustes`, `Revogado` ou `Expirado`.
@@ -62,10 +62,10 @@ pnpm dev
 - [ ] Geração em lote avisa quando o cliente não possui dias configurados.
 - [ ] Para uma semana de SEG/QUA/SEX, aparecem todas as ocorrências no mês (inclusive anos bissextos).
 - [ ] Calendário individual segue os mesmos dias e não duplica calendários existentes.
-- [ ] Alterar dia de uma postagem mantém as outras no lugar.
+- [ ] Alterar dia de uma postagem mantém as outras no lugar e preserva a arte da biblioteca vinculada.
 - [ ] Criar uma publicação especial não modifica a frequência do cliente.
 - [ ] Histórico registra a movimentação e temas/copies persistem após atualizar a página.
-- [ ] Link de calendário apresenta postagens e os anexos permitidos.
+- [ ] Link de calendário apresenta postagens e os anexos permitidos, incluindo artes vinculadas já liberadas internamente.
 - [ ] Link de arte avulsa mostra apenas aquela arte, sem dados internos do CRM.
 - [ ] Cliente aprova uma vez e a página confirma a resposta.
 - [ ] Cliente pede ajustes com motivo e isso aparece na fila.
