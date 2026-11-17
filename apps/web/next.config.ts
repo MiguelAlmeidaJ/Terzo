@@ -3,6 +3,18 @@ import type { NextConfig } from 'next';
 const api = process.env.API_INTERNAL_URL || 'http://localhost:3001';
 const nextConfig: NextConfig = {
   output: 'standalone',
+  async headers() {
+    return [
+      {
+        source: '/aprovacao/:path*',
+        headers: [
+          { key: 'Referrer-Policy', value: 'no-referrer' },
+          { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' },
+          { key: 'Cache-Control', value: 'no-store, private' },
+        ],
+      },
+    ];
+  },
   async rewrites() {
     return [
       { source: '/api/:path*', destination: `${api}/api/:path*` },
