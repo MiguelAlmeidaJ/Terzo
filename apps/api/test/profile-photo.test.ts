@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { AccessService } from '../src/access.service';
 import { MAX_PROFILE_PHOTO_BYTES, ProfilePhotoController, checkProfileImage } from '../src/profile-photo.controller';
 import { AdminController } from '../src/admin.controller';
+import { verifyPassword } from '../src/security';
 
 const makeJpeg = (length = 1024) => {
   const file = Buffer.alloc(length);
@@ -110,4 +111,47 @@ test('administration rejects linked or disabled team records before creating log
   await assert.rejects(() => form('taken'), /já está vinculado/);
   await assert.rejects(() => form('disabled'), /desativado/);
   assert.equal(created, false);
+});
+
+test('administrator creates a linked designer login with a hashed temporary password', async () => {
+  let created: any = null;
+  let linkedUserId = '';
+  let linkedMember: any = { accountId: '', name: 'Bruna Designer', area: 'Design', disabled: false };
+  let auditEvents = 0;
+  const prisma: any = {
+    user: {
+      findUnique: async ({ where }: any) => created && (where.id === created.id || where.username === created.username) ? created : null,
+      findUniqueOrThrow: async () => created,
+      findFirst: async () => null,
+      create: async ({ data }: any) => { created = { ...data }; return created; },
+      update: async ({ where, data }: any) => {
+        linkedUserId = where.id;
+        Object.assign(created, data);
+        return created;
+      },
+    },
+    document: {
+      findMany: async () => [{ id: 'm1', data: { ...linkedMember } }],
+      findUnique: async ({ where }: any) => where.collection_id.id === 'm1'
+        ? { id: 'm1', data: { ...linkedMember } } : null,
+      update: async ({ data }: any) => { linkedMember = data.data; },
+    },
+    audit: { create: async () => { auditEvents++; } },
+  };
+  const auth = { requireReady: async () => ({ user: admin }) };
+  const events = { broadcast: () => {} };
+  const controller = new AdminController(prisma, auth as any, access, events as any);
+  const result = await controller.create({
+    username: 'bruna.designer', name: 'Bruna Designer',
+    email: 'bruna@example.test', memberId: 'm1', role: 'member',
+  }, {} as any);
+  assert.equal(created.username, 'bruna.designer');
+  assert.equal(created.role, 'member');
+  assert.equal(created.mustChange, undefined); // Default true is set by the Prisma schema.
+  assert.equal(linkedMember.accountId, result.id);
+  assert.equal(linkedUserId, result.id);
+  assert.ok(result.tempPassword.length >= 10);
+  assert.notEqual(created.passHash, result.tempPassword);
+  assert.equal(verifyPassword(result.tempPassword, created.passHash), true);
+  assert.equal(auditEvents, 1);
 });
