@@ -152,9 +152,38 @@ function calDetail(id){const c0=byId('calendars',id);if(c0&&!calVisible(c0)){toa
  const tk=tks.length?`<div class="sec"><h3>Tarefas ligadas (aba Tarefas)</h3><div class="list">${tks.map(t=>`<button class="item" data-act="task-open" data-id="${t.id}"><span class="stripe"></span><span><span class="t">${esc(t.title)}</span><span class="m"><span>${esc(mName(t.assigneeId))}</span><span>${esc(tkS(t))}</span></span></span><span class="when">${t.due?fD(t.due):''}</span></button>`).join('')}</div></div>`:'';
  const H=[...(c.history||[])].reverse();
  const hist=`<div class="sec"><h3>Histórico</h3>${H.length?`<ul class="cal-hist">${H.map(h=>`<li><time>${calDT(h.at)}</time><div><b>${esc(calHistTxt(h))}</b>${h.by?` <span style="color:var(--muted)">· ${esc(calFn(h.by))}</span>`:''}${h.note?`<p>${esc(h.note)}</p>`:''}</div></li>`).join('')}</ul>`:'<p style="margin:0;color:var(--muted);font-size:13px">Sem movimentações ainda.</p>'}</div>`;
- openModal(`<div class="mh"><div class="row" style="gap:10px;flex-wrap:nowrap;min-width:0">${clientLogo(c.clientId,38)}<div style="min-width:0"><h2>${esc(cName(c.clientId))}</h2><p style="margin:2px 0 0;color:var(--muted);font-size:13px">Calendário de ${calMonthL(c.month)}</p></div></div><button class="x" data-act="close" aria-label="Fechar">×</button></div>
- <div class="mb">${steps}${info}${calNextBox(c)}${calPostingPanel(c)}${obs}${tk}${hist}${stamp(c)}</div>
- <div class="mf">${calCanEdit(c)?`<button class="btn" data-act="cal-edit" data-id="${esc(c.id)}">Editar responsáveis, prazo e observações</button>`:''}${caLinkButton('calendar',c)}${isAdmin()?`${c.stage!=='entregue'?`<button class="btn cal-del" data-act="cal-del" data-id="${esc(c.id)}">Excluir</button>`:''}<button class="btn" data-act="cal-transfer" data-id="${esc(c.id)}">Transferir</button>`:''}<span class="spacer"></span><button class="btn" data-act="close">Fechar</button></div>`,{rerender:draw})};draw()}
+ const tab=['programacao','producao','historico'].includes(ui.calDetailTab)?ui.calDetailTab:'programacao';
+ const count=Array.isArray(c.posts)?c.posts.length:0;
+ const activeColor=tab==='programacao'?'active':'';
+ const tabs='<div class="cal-view-tabs" role="tablist" aria-label="Áreas deste calendário">'+
+  [['programacao','Calendário de postagens',count],['producao','Produção e aprovação',''],['historico','Informações e histórico',H.length]].map(([key,label,n])=>
+    '<button type="button" class="cal-view-tab'+(tab===key?' active':'')+'" data-act="ps-tab" data-id="'+esc(c.id)+'" data-v="'+key+'" role="tab" aria-selected="'+(tab===key)+'" tabindex="'+(tab===key?'0':'-1')+'">'+label+(n!==''?'<span>'+n+'</span>':'')+'</button>').join('')+'</div>';
+ const owner=calSame(c)?calNm(c.copyId):calFn(c.copyId)+' / '+calFn(c.artId);
+ const overview='<div class="cal-overview">'+
+  '<div><span>Etapa atual</span><strong>'+esc(CAL_L[c.stage]||c.stage)+'</strong></div>'+
+  '<div><span>Responsável</span><strong>'+esc(owner)+'</strong></div>'+
+  '<div><span>Entrega prevista</span><strong class="'+(calLate(c)?'late':'')+'">'+(c.due?esc(calDT(c.due)):'Sem prazo')+'</strong></div>'+
+  '<div><span>Publicações</span><strong>'+count+'</strong></div></div>';
+ const body=tab==='programacao'?calPostingPanel(c):
+  tab==='producao'?'<div class="cal-production">'+steps+calNextBox(c)+'</div>':
+  '<div class="cal-history">'+info+obs+tk+hist+stamp(c)+'</div>';
+ const scrollTop=$('#modal .mb')?.scrollTop||0;
+ openModal('<div class="cal-workspace">'+
+  '<div class="mh"><div class="cal-workspace-identity">'+clientLogo(c.clientId,44)+
+    '<div><div class="cal-workspace-eyebrow">CALENDÁRIO EDITORIAL · '+esc(calMonthL(c.month))+'</div>'+
+    '<h2>'+esc(cName(c.clientId))+'</h2></div></div>'+
+    '<button class="x" data-act="close" aria-label="Fechar">×</button></div>'+
+  '<div class="mb">'+overview+tabs+body+'</div>'+
+  '<div class="mf cal-workspace-footer">'+
+    (calCanEdit(c)?'<button class="btn" data-act="cal-edit" data-id="'+esc(c.id)+'">Editar dados</button>':'')+
+    (isAdmin()?'<button class="btn" data-act="cal-transfer" data-id="'+esc(c.id)+'">Transferir</button>':'')+
+    caLinkButton('calendar',c)+
+    '<span class="spacer"></span>'+
+    (isAdmin()&&c.stage!=='entregue'?'<button class="btn cal-del" data-act="cal-del" data-id="'+esc(c.id)+'">Excluir</button>':'')+
+    '<button class="btn primary" data-act="close">Concluir</button>'+
+  '</div></div>',{rerender:draw});
+ const sc=$('#modal .mb');if(sc)sc.scrollTop=scrollTop;
+};draw()}
 function calHistTxt(h){const L=s=>CAL_L[s]||s;
  return {criado:'Calendário criado',ajuste:'Devolvido para ajustes',aprovado:'Aprovado pela liderança',entregue:'Entregue ao cliente',obs:'Observação',edit:'Dados atualizados',transfer:'Transferido de designer',reaberto:'Reaberto'}[h.k]||(h.from&&h.to?L(h.from)+' → '+L(h.to):L(h.to))}
 
@@ -243,7 +272,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-act]
  try{switch(a){
  case'cal-who':ui.calWho=v;refresh();break;
  case'cal-mine':{const mm=myMember();ui.calMonth=thisMonth();ui.calWho=mm?mm.id:'all';ui.calInit=true;go('calendarios');break}
- case'cal-open':ui.calAdj='';calDetail(id);break;
+ case'cal-open':ui.calAdj='';ui.calDetailTab='programacao';ui.psPicked=null;calDetail(id);break;
  case'cal-new':calForm(null);break;
  case'cal-edit':{const c=byId('calendars',id);if(c&&calCanEdit(c))calForm(c);break}
  case'cal-gen':calGenModal();break;
