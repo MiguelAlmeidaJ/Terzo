@@ -121,6 +121,7 @@ model ClientApproval {
   snapshot    Json
   status      String  @default("pending")
   requestedBy String  @map("requested_by")
+  sourceUpdatedAt BigInt @map("source_updated_at")
   createdAt   BigInt  @map("created_at")
   expiresAt   BigInt  @map("expires_at")
   decidedAt   BigInt? @map("decided_at")
