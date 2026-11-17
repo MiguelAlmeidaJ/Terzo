@@ -66,7 +66,7 @@ function setup(kind: 'calendar' | 'creative' = 'calendar') {
     $transaction: async (callback: any) => callback(prisma),
   };
   const service = new ClientApprovalService(prisma as any, new AccessService(), {} as any);
-  return { service, items, get audits() { return audits; }, touch: () => { sourceUpdatedAt++; } };
+  return { service, items, data, get audits() { return audits; }, touch: () => { sourceUpdatedAt++; } };
 }
 
 test('calendar approval is an immutable snapshot with only permitted client assets', async () => {
@@ -137,4 +137,17 @@ test('invalid tokens, unsupported types and missing files are rejected', async (
   await assert.rejects(() => scope.service.create(owner, { kind: 'other', targetId: 'target1' }), /invalid_kind/);
   const issued = await scope.service.create(owner, { kind: 'creative', targetId: 'target1' });
   await assert.rejects(() => scope.service.publicAsset(issued.token, foreignId), /permission_denied/);
+});
+
+test('calendar without any content or approved file cannot be sent for client validation', async () => {
+  const scope = setup('calendar');
+  scope.data.posts = [{ id: 'p1', date: '2026-11-02', title: '', caption: '', kind: 'regular' }];
+  scope.data.subs = [];
+  await assert.rejects(
+    () => scope.service.create(owner, { kind: 'calendar', targetId: 'target1' }),
+    /calendar_needs_content/,
+  );
+  scope.data.posts[0].title = 'Postagem da semana';
+  const result = await scope.service.create(owner, { kind: 'calendar', targetId: 'target1' });
+  assert.match(result.token, /^[a-f0-9]{64}$/);
 });
