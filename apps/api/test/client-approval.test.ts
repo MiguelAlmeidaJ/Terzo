@@ -136,5 +136,5 @@ test('invalid tokens, unsupported types and missing files are rejected', async (
   await assert.rejects(() => scope.service.publicView('invalid'), /link_not_found/);
   await assert.rejects(() => scope.service.create(owner, { kind: 'other', targetId: 'target1' }), /invalid_kind/);
   const issued = await scope.service.create(owner, { kind: 'creative', targetId: 'target1' });
-  await assert.rejects(() => scope.service.publicAsset(issued.token, 'x'.repeat(32)), /permission_denied/);
+  await assert.rejects(() => scope.service.publicAsset(issued.token, foreignId), /permission_denied/);
 });
