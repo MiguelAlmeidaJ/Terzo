@@ -8,6 +8,7 @@ CREATE TABLE "client_approvals" (
     "snapshot" JSONB NOT NULL,
     "status" TEXT NOT NULL DEFAULT 'pending',
     "requested_by" TEXT NOT NULL,
+    "source_updated_at" BIGINT NOT NULL,
     "created_at" BIGINT NOT NULL,
     "expires_at" BIGINT NOT NULL,
     "decided_at" BIGINT,
