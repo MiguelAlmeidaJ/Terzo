@@ -31,10 +31,11 @@ export class ProfilePhotoController {
   async upload(@Req() req: Request) {
     const { user } = await this.auth.requireReady(req);
     const bytes = checkProfileImage(req.body as Buffer, String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase());
+    const photoBytes = Uint8Array.from(bytes); // Prisma 7 expects a Uint8Array<ArrayBuffer>, not Node Buffer<ArrayBufferLike>.
     const stamp = now();
     await this.prisma.userProfilePhoto.upsert({
       where: { userId: user.id },
-      create: { userId: user.id, image: bytes, size: bytes.length, mime: 'image/jpeg', updatedAt: stamp },
+      create: { userId: user.id, image: photoBytes, size: bytes.length, mime: 'image/jpeg', updatedAt: stamp },
       update: { image: bytes, size: bytes.length, mime: 'image/jpeg', updatedAt: stamp },
     });
     return { ok: true, updatedAt: Number(stamp) };
