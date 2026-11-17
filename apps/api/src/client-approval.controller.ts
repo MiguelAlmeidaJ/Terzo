@@ -23,6 +23,12 @@ export class ClientApprovalController {
     return this.approvals.list(user, kind, targetId);
   }
 
+  @Get('api/client-approvals/overview')
+  async overview(@Req() req: Request) {
+    const { user } = await this.auth.requireReady(req);
+    return this.approvals.overview(user);
+  }
+
   @Post('api/client-approvals/:id/revoke')
   @HttpCode(200)
   async revoke(@Param('id') id: string, @Req() req: Request) {
