@@ -150,10 +150,16 @@ export class ClientApprovalService {
       where: { id: { in: ids }, clientId },
       select: { id: true, mime: true, name: true },
     }) : [];
+    const seenFiles = new Set<string>();
     const files = rawFiles.flatMap((file) => {
       if (file.url) return [file];
       const asset = assets.find((a) => a.id === file.assetId);
       return asset ? [{ assetId: asset.id, name: file.name || asset.name || 'Arquivo', mime: asset.mime }] : [];
+    }).filter((file) => {
+      const key = file.assetId || file.url || '';
+      if (!key || seenFiles.has(key)) return false;
+      seenFiles.add(key);
+      return true;
     });
     if (kind === 'calendar' && !/^\d{4}-(0[1-9]|1[0-2])$/.test(month))
       throw new BadRequestException('invalid_calendar_month');
