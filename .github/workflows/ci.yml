@@ -49,3 +49,6 @@ jobs:
 
       - name: Build monorepo
         run: pnpm build
+
+      - name: Verify original interface and route permissions
+        run: pnpm ui:verify
