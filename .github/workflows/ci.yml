@@ -16,6 +16,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Python for original CRM HTML generation
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
@@ -44,3 +49,6 @@ jobs:
 
       - name: Build monorepo
         run: pnpm build
+
+      - name: Verify original interface and route permissions
+        run: pnpm ui:verify

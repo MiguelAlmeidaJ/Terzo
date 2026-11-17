@@ -13,6 +13,12 @@ const required = [
   'apps/web/app/page.tsx',
   'apps/web/app/login/page.tsx',
   'apps/web/app/admin/page.tsx',
+  'apps/web/legacy-src/base.html',
+  'apps/web/legacy-src/build.py',
+  'apps/web/public/legacy/login.html',
+  'apps/web/public/legacy/admin.html',
+  'apps/web/public/terzo-runtime.js',
+  'scripts/generate-legacy.mjs',
   'packages/database/src/index.ts',
   'packages/database/prisma.config.ts',
   'packages/database/prisma/schema.prisma',
@@ -25,10 +31,7 @@ const forbidden = [
   'web',
   'src',
   'deploy/nginx.conf',
-  'scripts/generate-legacy.mjs',
   'apps/api/src/database.ts',
-  'apps/web/public/legacy',
-  'apps/web/public/terzo-runtime.js',
 ];
 for (const file of required) assert.ok(existsSync(locate(file)), 'Arquivo obrigatório ausente: ' + file);
 for (const file of forbidden) assert.ok(!existsSync(locate(file)), 'Artefato antigo presente: ' + file);
@@ -51,4 +54,6 @@ for (const file of files) {
   assert.ok(!contents.includes("'./generated/prisma/client'"), 'Import Prisma antigo: ' + file);
   assert.ok(!contents.includes("'./database'"), 'Import do adaptador antigo: ' + file);
 }
+assert.ok(readdirSync(locate('apps/web/legacy-src/modulos')).filter((name) => /^crm_.*\.js$/.test(name)).length >= 10,
+  'Módulos da interface original precisam estar disponíveis para a geração');
 console.log('Monorepo pnpm: estrutura, histórico de migrations e imports verificados.');
