@@ -2,7 +2,7 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import { randomBytes } from 'node:crypto';
 import { Prisma, User } from '@terzo/database';
 import { PrismaService } from './prisma.service';
-import { AccessService } from './access.service';
+import { AccessService, segmentPattern } from './access.service';
 import { EventsService } from './events.service';
 import { hashPassword, temporaryPassword } from './security';
 import { now } from './config';
@@ -108,7 +108,7 @@ export class TeamProvisioningService {
   async provisionExisting(actor: User, requestedIds: unknown) {
     this.assertAdmin(actor);
     if (!Array.isArray(requestedIds) || requestedIds.length < 1 || requestedIds.length > 100 ||
-        requestedIds.some(id => typeof id !== 'string' || !/^[\w.~-]{1,200}$/.test(id)) ||
+        requestedIds.some(id => typeof id !== 'string' || !segmentPattern.test(id)) ||
         new Set(requestedIds).size !== requestedIds.length) throw new BadRequestException('Selecione de 1 a 100 integrantes diferentes.');
     const created: Provisioned[] = [];
     const skipped: Array<{ memberId: string; name: string; reason: string }> = [];
