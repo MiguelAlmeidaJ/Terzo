@@ -5,6 +5,14 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   async headers() {
     return [
+      // The CRM HTML is generated at startup; never reuse a prior branch's static page.
+      ...['/', '/index.html', '/legacy/index.html'].map((source) => ({
+        source,
+        headers: [
+          { key: 'Cache-Control', value: 'no-store, max-age=0, must-revalidate' },
+          { key: 'Pragma', value: 'no-cache' },
+        ],
+      })),
       {
         source: '/aprovacao/:path*',
         headers: [
