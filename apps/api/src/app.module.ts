@@ -11,12 +11,13 @@ import { PrismaService } from './prisma.service';
 import { StorageService } from './storage.service';
 import { AssetAccessService } from './asset-access.service';
 import { StorageController } from './storage.controller';
+import { ProfilePhotoController } from './profile-photo.controller';
 import { NextcloudReconciliationService } from './nextcloud-reconciliation.service';
 import { ClientApprovalService } from './client-approval.service';
 import { ClientApprovalController } from './client-approval.controller';
 
 @Module({
-  controllers: [AppController, AuthController, DocumentsController, AssetsController, AdminController, StorageController, ClientApprovalController],
+  controllers: [AppController, AuthController, DocumentsController, AssetsController, AdminController, StorageController, ClientApprovalController, ProfilePhotoController],
   providers: [PrismaService, AuthService, AccessService, EventsService, StorageService, AssetAccessService, NextcloudReconciliationService, ClientApprovalService],
 })
 export class AppModule {}
