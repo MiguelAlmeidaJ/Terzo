@@ -37,9 +37,11 @@ export class AdminController {
     const role = ['owner', 'editor', 'member'].includes(body?.role) ? body.role : 'member';
     if (role !== 'member' && actor.role !== 'owner') throw new ForbiddenException('Só o dono cria outros administradores do servidor.');
     const name = String(body?.name || '').trim().slice(0, 120); if (!name) throw new BadRequestException('Informe o nome.');
+    const memberId = String(body?.memberId || '');
+    if (memberId) await this.assertMemberAvailable('', memberId);
     const password = temporaryPassword(); const id = `u_${randomBytes(12).toString('base64url')}`;
     await this.prisma.user.create({ data: { id, username, name, email: String(body?.email || '').trim().slice(0, 200), passHash: hashPassword(password), role, createdAt: now() } });
-    if (body?.memberId) await this.linkMember(id, body.memberId, actor.id);
+    if (memberId) await this.linkMember(id, memberId, actor.id);
     await this.audit(actor.id, 'user_create', id, { username, role }); return { id, tempPassword: password };
   }
 
@@ -56,6 +58,8 @@ export class AdminController {
     if (body.status && ['active', 'disabled'].includes(body.status)) { data.status = body.status; data.sessionVersion = { increment: 1 }; }
     if (body.resetPassword) { const password = temporaryPassword(); data.passHash = hashPassword(password); data.mustChange = true; data.sessionVersion = { increment: 1 }; result.tempPassword = password; }
     if (body.revokeSessions) data.sessionVersion = { increment: 1 };
+    if (body.memberId !== undefined && body.memberId)
+      await this.assertMemberAvailable(id, String(body.memberId));
     await this.prisma.user.update({ where: { id }, data });
     if (body.status === 'disabled' || body.resetPassword || body.revokeSessions) { await this.prisma.session.deleteMany({ where: { userId: id } }); this.events.kick(id); }
     if (body.memberId !== undefined) await this.linkMember(id, body.memberId, actor.id);
@@ -71,7 +75,24 @@ export class AdminController {
   private async admin(req: Request) { const { user } = await this.auth.requireReady(req); if (this.access.level(user) < 3) throw new ForbiddenException('permission_denied'); return user; }
   private audit(actor: string, action: string, target: string, details?: Prisma.InputJsonValue) { return this.prisma.audit.create({ data: { at: now(), actor, action, target, details } }); }
 
+  private async assertMemberAvailable(userId: string, memberId: string) {
+    const row = await this.prisma.document.findUnique({
+      where: { collection_id: { collection: 'members', id: memberId } },
+    });
+    if (!row) throw new BadRequestException('Integrante não encontrado na Equipe.');
+    const data = row.data as Record<string, unknown>;
+    if (data.disabled) throw new BadRequestException('Este integrante está desativado.');
+    if (data.accountId && data.accountId !== userId)
+      throw new ConflictException('Este cadastro já está vinculado a outro login.');
+    const linked = await this.prisma.user.findFirst({
+      where: { memberId, ...(userId ? { id: { not: userId } } : {}) },
+      select: { id: true },
+    });
+    if (linked) throw new ConflictException('Este cadastro já possui uma conta de acesso.');
+  }
+
   private async linkMember(userId: string, memberId: string, actor: string) {
+    if (memberId) await this.assertMemberAvailable(userId, memberId);
     const previous = await this.prisma.document.findMany({ where: { collection: 'members' } });
     for (const row of previous) { const data = row.data as any; if (data.accountId !== userId || row.id === memberId) continue; data.accountId = ''; await this.saveMember(row.id, data, actor); }
     await this.prisma.user.update({ where: { id: userId }, data: { memberId: memberId || '' } });
