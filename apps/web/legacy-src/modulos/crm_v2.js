@@ -17,7 +17,7 @@ function vMeuDia(){const mm=myMember();
  const wq=waiting().filter(w=>w.ownerId===mm.id||myC.some(c=>c.id===w.clientId));
  const l0=weekLoad(mm.id,0),c0=cap(mm);
  return `<div class="head"><div class="row" style="flex-wrap:nowrap">${meAv(mm,48)}<div><h1>Olá, ${esc(mm.name)}</h1><p>${esc(mm.role||mm.area)}${mm.hideRank?'':` · <span class="${capCls(l0,c0)==='over'?'when late':''}">${l0}/${c0} pontos nesta semana</span>`}</p></div></div>
-  <div class="row"><button class="btn" data-act="profile" data-id="${mm.id}">${mm.photoId?'Meu perfil':'Adicionar minha foto'}</button><button class="btn" data-act="new-meeting" data-scope="interna">+ Interna</button><button class="btn primary" data-act="cr-upload">↑ Enviar arte</button></div></div>
+  <div class="row"><button class="btn" data-act="profile" data-id="${mm.id}">Meu perfil e foto</button><button class="btn" data-act="new-meeting" data-scope="interna">+ Interna</button><button class="btn primary" data-act="cr-upload">↑ Enviar arte</button></div></div>
  ${todayBlock(mm)}
  ${rankPanel()}
  <div class="grid2">
