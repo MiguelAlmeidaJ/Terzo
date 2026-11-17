@@ -25,3 +25,6 @@ tmp/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Generated original CRM HTML (sources are in apps/web/legacy-src)
+apps/web/public/legacy/index.html

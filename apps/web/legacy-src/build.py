@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Gera web/public/legacy/index.html a partir de base.html + modulos/*.js.
+"""Gera apps/web/public/legacy/index.html a partir de base.html + modulos/*.js.
 Uso: python3 src/build.py   (Python 3.8+, sem dependências)
 base.html  = versão original do CRM; modulos/ = camadas do Terzo aplicadas por cima, em ordem.
 Cada módulo é JavaScript comum; funções declaradas depois substituem as anteriores de mesmo nome."""
@@ -55,7 +55,7 @@ assert src.count(anchor)==1
 mod=brand(mod)
 out=src.replace(anchor,'\n'+mod+anchor)
 rendered=out.replace('<head>','<head><script src="/terzo-runtime.js"></script>',1)
-targets=['../web/public/legacy/index.html']
+targets=['../public/legacy/index.html']
 for target in targets:
     os.makedirs(os.path.dirname(target),exist_ok=True)
     open(target,'w',encoding='utf-8').write(rendered)

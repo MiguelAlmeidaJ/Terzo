@@ -81,9 +81,9 @@ try {
   await send('Network.setCookie', { name: 'terzo_sid', value: sid, url: 'http://localhost:3000' });
   await send('Page.navigate', { url: 'http://localhost:3000/' });
   await new Promise((resolve) => setTimeout(resolve, 8000));
-  const expression = `({heading:document.querySelector('.workspace-body h1')?.textContent||'',account:document.querySelector('.sidebar .account strong')?.textContent||'',modules:document.querySelectorAll('.module-card').length,login:location.pathname==='/login'})`;
+  const expression = `({heading:document.querySelector('#main h1')?.textContent||'',account:document.querySelector('#header-name')?.textContent||'',navigation:document.querySelectorAll('[data-act=nav]').length,loading:document.querySelector('#sync')?.textContent||'',login:location.pathname==='/login'})`;
   let evaluation = await send('Runtime.evaluate', { expression, returnByValue: true });
-  if (!evaluation.result.value.heading || evaluation.result.value.modules < 5) {
+  if (!evaluation.result.value.heading || evaluation.result.value.navigation < 5) {
     await send('Page.reload', { ignoreCache: true });
     await new Promise((resolve) => setTimeout(resolve, 6000));
     evaluation = await send('Runtime.evaluate', { expression, returnByValue: true });
@@ -91,7 +91,7 @@ try {
   socket.close();
   const state = evaluation.result.value;
   console.log(JSON.stringify({ events, state }, null, 2));
-  if (events.length || state.login || !state.heading || !state.account || state.modules < 5) process.exitCode = 1;
+  if (events.length || state.login || !state.heading || !state.account || state.navigation < 5) process.exitCode = 1;
 } finally {
   if (chrome && chrome.exitCode == null) {
     const stopped = new Promise((resolve) => { chrome.once('exit', resolve); setTimeout(resolve, 2000); });
