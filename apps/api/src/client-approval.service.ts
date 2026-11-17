@@ -91,7 +91,7 @@ export class ClientApprovalService {
     // Prioriza o material aprovado na validação final; não expõe rascunhos internos.
     const approved = subs.filter((s) => s.stage === 'validacao' && s.status === 'approved').at(-1);
     const selected = approved && Array.isArray(approved.files) ? approved.files : [];
-    return selected.slice(0, 30).flatMap((raw) => {
+    return selected.slice(0, 30).flatMap((raw): FileItem[] => {
       if (!raw || typeof raw !== 'object') return [];
       const file = raw as Record<string, unknown>;
       const assetId = safeText(file.assetId, 64);
