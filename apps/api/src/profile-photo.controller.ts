@@ -36,7 +36,7 @@ export class ProfilePhotoController {
     await this.prisma.userProfilePhoto.upsert({
       where: { userId: user.id },
       create: { userId: user.id, image: photoBytes, size: bytes.length, mime: 'image/jpeg', updatedAt: stamp },
-      update: { image: bytes, size: bytes.length, mime: 'image/jpeg', updatedAt: stamp },
+      update: { image: photoBytes, size: bytes.length, mime: 'image/jpeg', updatedAt: stamp },
     });
     return { ok: true, updatedAt: Number(stamp) };
   }
