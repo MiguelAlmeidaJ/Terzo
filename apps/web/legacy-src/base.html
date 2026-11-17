@@ -987,12 +987,12 @@ function vEquipe(){const m=thisMonth();
   <div class="tbl-wrap"><table><tbody>${r('Marcos abertos',s.open)}${r('Marcos concluídos',s.done)}${r('Atrasados',s.late,s.late?'color:var(--crit);font-weight:700':'')}${r('Concluídos no prazo',s.rate===null?'—':s.rate+'%')}${r('Catálogo do mês',s.catDone+'/'+s.catTotal+' publicados')}${r('Reuniões futuras',s.meet)}${s.projects?r('Projetos que lidera',s.projects):''}${s.clients?r('Clientes sob responsabilidade',s.clients):''}</tbody></table></div>
   <div class="row" style="gap:6px">${x.accountId?`<span class="pill p-ok">✓ Acesso vinculado${NAMES[x.accountId]?' · '+esc(NAMES[x.accountId]):''}</span>${isAdmin()||x.accountId===me.id?`<button class="btn sm ghost" data-act="unlink-member" data-id="${x.id}">Desvincular</button>`:''}`
    :`<span class="pill">Sem acesso vinculado</span><small style="color:var(--muted);font-size:12px;flex-basis:100%">No primeiro acesso, a pessoa escolhe “Sou ${esc(x.name)}”.</small>`}</div>
-  ${isAdmin()?`<div class="row"><button class="btn sm" data-act="edit-member" data-id="${x.id}">Editar</button><button class="btn sm danger" data-act="remove-member" data-id="${x.id}">Remover</button></div>`:x.accountId&&x.accountId===me.id?`<div class="row"><button class="btn sm" data-act="edit-member" data-id="${x.id}">Editar meu cadastro</button></div>`:''}</div>`}).join('')}</div>
+  ${isAdmin()?`<div class="row"><button class="btn sm" data-act="edit-member" data-id="${x.id}">Editar</button>${me.canEdit&&!x.accountId?'<a class="btn sm primary" href="/admin">Criar login</a>':''}<button class="btn sm danger" data-act="remove-member" data-id="${x.id}">Remover</button></div>`:x.accountId&&x.accountId===me.id?`<div class="row"><button class="btn sm" data-act="edit-member" data-id="${x.id}">Editar meu cadastro</button></div>`:''}</div>`}).join('')}</div>
  <section class="panel"><h2>Como funciona o acesso</h2><div style="font-size:14px;display:flex;flex-direction:column;gap:6px;max-width:72ch">
-  <p style="margin:0">1. Crie o e-mail da pessoa e use esse e-mail para ela criar a conta no Claude.</p>
-  <p style="margin:0">2. Cadastre o mesmo e-mail aqui na Equipe, em “Editar”, para ter o registro.</p>
-  <p style="margin:0">3. Compartilhe o CRM com esse e-mail pelo menu “Compartilhar” da página, como <b>Colaborador</b>.</p>
-  <p style="margin:0">4. No primeiro acesso, a pessoa escolhe o próprio nome no quadro “Quem é você na equipe?”. Depois disso, o CRM a reconhece sempre que ela entrar com essa conta.</p></div></section>`:emptyBox('Nenhum integrante cadastrado','Use “+ Cadastrar integrante”.')}`}
+  <p style="margin:0">1. Cadastre a pessoa na Equipe, informando nome, área e função.</p>
+  <p style="margin:0">2. Abra <a href="/admin">Logins do Terzo</a>, crie um usuário individual e vincule o cadastro da Equipe.</p>
+  <p style="margin:0">3. Entregue a senha provisória por um canal privado. No primeiro acesso, a pessoa deverá escolher uma nova senha.</p>
+  <p style="margin:0">4. Defina o perfil de acesso na aba Gerenciamento de usuários. Cada integrante gerencia sua própria foto, armazenada apenas no PostgreSQL.</p></div></section>`:emptyBox('Nenhum integrante cadastrado','Use “+ Cadastrar integrante”.')}`}
 
 /* ---------- datas comemorativas ---------- */
 const DT_CATS={comercial:['Datas comerciais','p-acc'],feriado:['Feriados nacionais','p-medio'],prof:['Dias das profissões','p-alto'],saude:['Saúde e meio ambiente','p-ok'],cultura:['Cultura e estilo de vida',''],mes:['Meses temáticos','p-baixo'],custom:['Datas personalizadas','p-critico']};
