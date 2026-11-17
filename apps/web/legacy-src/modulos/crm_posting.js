@@ -26,25 +26,72 @@ function calBuildPosts(client,month) {
   }
   return result;
 }
+function postMonthGrid(month, posts) {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return { offset:0, days:[] };
+  const [year,mon] = month.split('-').map(Number);
+  const count = new Date(Date.UTC(year,mon,0)).getUTCDate();
+  const offset = (new Date(Date.UTC(year,mon-1,1)).getUTCDay()+6)%7;
+  const days = [];
+  for (let n=1;n<=count;n++) {
+    const date=month+'-'+String(n).padStart(2,'0');
+    days.push({ date, num:n, posts:(posts||[]).filter(p=>p.date===date) });
+  }
+  return { offset, days };
+}
 function calPostingPanel(c) {
-  const posts = Array.isArray(c.posts) ? c.posts.slice().sort((a,b)=>a.date.localeCompare(b.date)) : [];
-  const can = calCanEdit(c) && c.stage!=='entregue';
-  const days = (byId('clients',c.clientId)?.postingDays||[]).map(k=>POST_LABELS[k]).filter(Boolean);
-  const rows = posts.map(p =>
-    '<div class="post-row"><span class="post-date"><b>'+esc(String(p.date||'').slice(-2))+'</b><small>'+esc(postDay(p.date))+'</small></span>'+
-    '<span class="post-body"><b>'+esc(p.title||'Postagem planejada')+'</b>'+
-    '<small>'+esc(p.kind==='special'?'Data especial / campanha':'Postagem recorrente')+
-    (p.movedFrom?' · realocada de '+esc(fD(p.movedFrom)):'')+(p.format?' · '+esc(p.format):'')+'</small>'+
-    (p.caption?'<p>'+esc(p.caption)+'</p>':'')+(p.notes?'<small>'+esc(p.notes)+'</small>':'')+'</span>'+ 
-    (p.creativeId&&byId('creatives',p.creativeId)?'<button type="button" class="btn sm" data-act="open-creative" data-id="'+esc(p.creativeId)+'">Abrir arte</button>':'')+
-    (can?'<button type="button" class="btn sm" data-act="ps-edit" data-id="'+esc(c.id)+'" data-post="'+esc(p.id)+'">Editar / realocar</button>':'')+'</div>'
-  ).join('');
-  return '<div class="sec post-section"><h3>Programação de postagens · '+posts.length+' publicações</h3>'+
-    '<p class="post-info">Dias cadastrados: <b>'+esc(days.join(' · ')||'não definidos')+'</b>. As datas do mês podem ser ajustadas para campanhas e datas comemorativas sem alterar a rotina do cliente.</p>'+
-    (rows?'<div class="post-list">'+rows+'</div>':'<p class="post-empty">Nenhuma publicação programada para este calendário.</p>')+
-    (can?'<div class="row" style="margin-top:12px"><button class="btn sm primary" data-act="ps-new" data-id="'+esc(c.id)+'">+ Postagem especial</button>'+
-      '<button class="btn sm" data-act="ps-regenerate" data-id="'+esc(c.id)+'">'+(Array.isArray(c.posts)?'Recriar pelos dias cadastrados':'Gerar pelos dias cadastrados')+'</button>'+
-      '</div>':'')+'</div>';
+  const posts=Array.isArray(c.posts)?c.posts:[];
+  const can=calCanEdit(c)&&c.stage!=='entregue';
+  const days=(byId('clients',c.clientId)?.postingDays||[]).map(k=>POST_LABELS[k]).filter(Boolean);
+  const grid=postMonthGrid(c.month,posts);
+  const labels=['SEG','TER','QUA','QUI','SEX','SÁB','DOM'];
+  const picked=ui.psPicked&&ui.psPicked.calId===c.id?ui.psPicked.postId:'';
+  const countSpecial=posts.filter(p=>p.kind==='special').length;
+  const cells=grid.days.map(day=>{
+    const occupied=day.posts.length>0,free=!occupied;
+    const movable=can&&occupied,available=can&&free;
+    const entry=day.posts.map(p=>'<div class="post-event'+(picked===p.id?' is-picked':'')+'"'+
+      (can?' draggable="true" tabindex="0" role="button" data-post="'+esc(p.id)+'" data-act="ps-pick" data-id="'+esc(c.id)+'"':'')+
+      ' title="'+esc((can?'Arraste, clique ou pressione Enter para selecionar. Duplo clique para editar. ':'')+(p.title||'Postagem planejada'))+'">'+
+      '<span class="post-event-title">'+esc(p.title||'Postagem planejada')+'</span>'+
+      '<span class="post-event-meta">'+(p.kind==='special'?'★ Especial':'Publicação')+(p.format?' · '+esc(p.format):'')+'</span></div>').join('');
+    return '<div class="post-cell'+(occupied?' has-post':' is-free')+
+      (available?' can-drop':'')+(picked&&available?' can-place':'')+'" data-day="'+esc(day.date)+'"'+
+      (available?' tabindex="0" role="button" data-act="ps-place" data-id="'+esc(c.id)+'" aria-label="Dia '+day.num+' livre: '+(picked?'realocar postagem selecionada':'adicionar postagem especial')+'"':'')+
+      ' title="'+(occupied?'Duplo clique na publicação para editar':available?(picked?'Clique para realocar a postagem':'Dia livre. Duplo clique para adicionar postagem'):'Dia sem postagem')+'">'+
+      '<div class="post-cell-head"><span class="post-cell-num">'+String(day.num).padStart(2,'0')+'</span>'+
+      (occupied?'<span class="post-cell-indicator" aria-hidden="true"></span>':'')+'</div>'+entry+'</div>';
+  });
+  const empty=Array(grid.offset).fill('<div class="post-cell post-padding" aria-hidden="true"></div>');
+  const status=picked?'<div class="post-move-hint" role="status">Postagem selecionada. Clique em uma data cinza para realocar, ou use Esc para cancelar. <button type="button" data-act="ps-cancel" data-id="'+esc(c.id)+'">Cancelar seleção</button></div>':'';
+  return '<section class="sec post-section" aria-label="Calendário editorial">'+
+    '<div class="post-panel-head"><div><h3>Calendário de publicações</h3><p>'+esc(calMonthL(c.month))+' · '+posts.length+' postagens · '+countSpecial+' especiais</p></div>'+
+    '<div class="post-legend"><span><i class="post-key published"></i>Com postagem</span><span><i class="post-key available"></i>Dia livre</span></div></div>'+
+    '<p class="post-info">Dias habituais: <strong>'+esc(days.join(' · ')||'não definidos')+'</strong>. '+(can?'Arraste uma publicação rosa para uma data livre em cinza. Duplo clique na publicação para editar. No celular, toque na publicação e depois no dia livre.':'Programação somente para consulta.')+'</p>'+
+    status+
+    '<div class="post-calendar-wrap"><div class="post-calendar" role="group" aria-label="Mês de '+esc(calMonthL(c.month))+'">'+
+    labels.map(x=>'<div class="post-week-label">'+x+'</div>').join('')+empty.join('')+cells.join('')+'</div></div>'+
+    (can?'<div class="post-toolbar"><button class="btn primary" data-act="ps-new" data-id="'+esc(c.id)+'">+ Postagem especial</button>'+
+       '<button class="btn" data-act="ps-regenerate" data-id="'+esc(c.id)+'">'+(Array.isArray(c.posts)?'Recriar pelos dias cadastrados':'Gerar pelos dias cadastrados')+'</button></div>':'')+
+    '</section>';
+}
+async function calMovePost(c,postId,date){
+  if(!c||!calCanEdit(c)||c.stage==='entregue')throw Error('permission_denied');
+  if(!postMonth(date,c.month))throw Error('invalid_date');
+  const fresh=byId('calendars',c.id);
+  if(!fresh||!calCanEdit(fresh)||fresh.stage==='entregue')throw Error('permission_denied');
+  const posts=Array.isArray(fresh.posts)?fresh.posts.map(x=>({...x})):[];
+  const current=posts.find(x=>x.id===postId);
+  if(!current)throw Error('post_not_found');
+  if(current.date===date)return false;
+  if(posts.some(x=>x.date===date)){toast('Esta data já possui postagem. Escolha um dia cinza livre.');return false}
+  const previous=current.date;
+  current.movedFrom=current.movedFrom||previous;
+  current.date=date;
+  const reset=fresh.stage==='validacao'&&fresh.approvedAt?{approvedAt:'',approvedBy:''}:{};
+  await calSave(fresh,{posts,...reset},{k:'postagem',note:'Postagem realocada: '+previous+' → '+date+(current.title?' · '+current.title:'')});
+  ui.psPicked=null;
+  toast('Postagem transferida para '+fD(date));
+  return true;
 }
 function calPostForm(c,existing) {
   if (!calCanEdit(c) || c.stage==='entregue') { toast('Este calendário não pode ser editado.');return; }
@@ -66,6 +113,7 @@ function calPostForm(c,existing) {
       if(!current||!calCanEdit(current))throw Error('permission_denied');
       if(!postMonth(v.date,current.month)){toast('Escolha uma data válida no mês deste calendário.');throw Error('invalid_date')}
       const posts=Array.isArray(current.posts)?[...current.posts]:[];
+      if(posts.some(p=>p.date===v.date&&p.id!==existing?.id)){toast('Esta data já tem uma postagem. Escolha um dia livre no calendário.');throw Error('occupied_date')}
       const moved=existing && existing.date!==v.date;
       const item={id:existing?.id||uid(),date:v.date,kind:v.kind==='special'?'special':'regular',
         title:v.title.slice(0,200),caption:v.caption.slice(0,3000),format:v.format,notes:v.notes.slice(0,1000),creativeId:v.creativeId||''};
