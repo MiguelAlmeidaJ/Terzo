@@ -3029,7 +3029,7 @@ function renderNav(){const mm=mode==='wait'?null:myMember();const adm=mode!=='wa
 function refresh(){if(mode==='wait')return;applyMine();if(VIEW_ALIAS[ui.view])ui.view=aliasView(ui.view);renderNav();
  const a=document.activeElement,id=a&&a.id&&$('#main').contains(a)?a.id:null,ss=id?a.selectionStart:null;
  resolveNames();autoLink();applyMine();
- $('#main').innerHTML=linkBanner()+({meudia:vMeuDia,painel:vPainel,producao:vProducao,clientes:vClientes,comercial:vComercial,estrategia:vEstrategia,planejamento:vPlanejamento,agenda:vAgenda,criativos:vCriativos,equipe:vEquipe}[ui.view]||vPainel)();
+ $('#main').innerHTML=linkBanner()+({meudia:vMeuDia,painel:vPainel,producao:vProducao,clientes:vClientes,comercial:vComercial,estrategia:vEstrategia,planejamento:vPlanejamento,agenda:vAgenda,criativos:vCriativos,validacaocliente:vValidacaoCliente,equipe:vEquipe}[ui.view]||vPainel)();
  if(id){const n=document.getElementById(id);if(n){n.focus();try{n.setSelectionRange(ss,ss)}catch(e){}}}
  cwRender();
  if(modalCtx&&modalCtx.rerender){const f=document.activeElement;if(!(f&&$('#modal').contains(f)&&/^(TEXTAREA|INPUT)$/.test(f.tagName)))modalCtx.rerender()}}
