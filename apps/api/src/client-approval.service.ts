@@ -188,6 +188,28 @@ export class ClientApprovalService {
     };
   }
 
+  async overview(user: User) {
+    const rows = await this.prisma.clientApproval.findMany({
+      where: this.access.level(user) >= 3 ? {} : { requestedBy: user.id },
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+      select: {
+        id: true, kind: true, targetId: true, clientId: true, title: true,
+        status: true, revokedAt: true, requestedBy: true, createdAt: true,
+        expiresAt: true, decidedBy: true, decidedAt: true, comment: true,
+      },
+    });
+    return {
+      items: rows.map((row) => ({
+        id: row.id, kind: row.kind, targetId: row.targetId, clientId: row.clientId,
+        title: row.title, status: row.revokedAt ? 'revoked' : row.status,
+        requestedBy: row.requestedBy, createdAt: Number(row.createdAt),
+        expiresAt: Number(row.expiresAt), decidedAt: row.decidedAt ? Number(row.decidedAt) : null,
+        decidedBy: row.decidedBy, comment: row.comment,
+      })),
+    };
+  }
+
   async revoke(user: User, id: string) {
     const row = await this.prisma.clientApproval.findUnique({ where: { id } });
     if (!row) throw new NotFoundException('approval_not_found');
