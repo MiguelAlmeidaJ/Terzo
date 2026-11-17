@@ -44,7 +44,7 @@ export class TeamProvisioningService {
     if (this.access.level(actor) < 3) throw new ForbiddenException('permission_denied');
   }
 
-  private async createAccount(db: Prisma.TransactionClient, actor: User, memberId: string, name: string): Promise<Provisioned> {
+  private async createAccount(db: Prisma.TransactionClient, memberId: string, name: string, role: 'member' | 'editor' = 'member'): Promise<Provisioned> {
     const base = usernameFromName(name);
     let username = '';
     // A unique username must never overwrite or link an existing account by name.
@@ -62,7 +62,7 @@ export class TeamProvisioningService {
     const email = emailFromUsername(username);
     await db.user.create({ data: {
       id: userId, username, name, email, memberId,
-      passHash: hashPassword(password), role: 'member', mustChange: true,
+      passHash: hashPassword(password), role, mustChange: true,
       status: 'active', createdAt: now(),
     } });
     return { memberId, name, username, email, tempPassword: password, userId };
@@ -79,7 +79,7 @@ export class TeamProvisioningService {
     const memberId = 'm_' + randomBytes(12).toString('base64url');
     const createdAt = now();
     const result = await this.prisma.$transaction(async db => {
-      const account = await this.createAccount(db, actor, memberId, name);
+      const account = await this.createAccount(db, memberId, name, input.admin ? 'editor' : 'member');
       const member = {
         name, area, role, capacity,
         hideRank: Boolean(input?.hideRank),
@@ -123,7 +123,8 @@ export class TeamProvisioningService {
           const existing = await db.user.findFirst({ where: { memberId }, select: { id: true } });
           if (existing) throw new ConflictException('Este integrante já possui login.');
           const name = safeString(member.name, 120);
-          const account = await this.createAccount(db, actor, memberId, name);
+          if (member.admin && actor.role !== 'owner') throw new ForbiddenException('Somente o proprietário provisiona administradores.');
+          const account = await this.createAccount(db, memberId, name, member.admin ? 'editor' : 'member');
           const nextMember = { ...member, accountId: account.userId, email: account.email };
           await db.document.update({ where: { collection_id: { collection: 'members', id: memberId } },
             data: { data: nextMember as Prisma.InputJsonValue, updatedAt: now(), updatedBy: actor.id } });
