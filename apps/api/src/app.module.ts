@@ -15,9 +15,11 @@ import { ProfilePhotoController } from './profile-photo.controller';
 import { NextcloudReconciliationService } from './nextcloud-reconciliation.service';
 import { ClientApprovalService } from './client-approval.service';
 import { ClientApprovalController } from './client-approval.controller';
+import { TeamController } from './team.controller';
+import { TeamProvisioningService } from './team-provisioning.service';
 
 @Module({
-  controllers: [AppController, AuthController, DocumentsController, AssetsController, AdminController, StorageController, ClientApprovalController, ProfilePhotoController],
-  providers: [PrismaService, AuthService, AccessService, EventsService, StorageService, AssetAccessService, NextcloudReconciliationService, ClientApprovalService],
+  controllers: [AppController, AuthController, DocumentsController, AssetsController, AdminController, StorageController, ClientApprovalController, ProfilePhotoController, TeamController],
+  providers: [PrismaService, AuthService, AccessService, EventsService, StorageService, AssetAccessService, NextcloudReconciliationService, ClientApprovalService, TeamProvisioningService],
 })
 export class AppModule {}
