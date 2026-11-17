@@ -10,7 +10,7 @@
     "dev": "pnpm db:build && pnpm --parallel --filter @terzo/api --filter @terzo/web dev",
     "build": "pnpm db:build && pnpm --filter @terzo/api build && pnpm --filter @terzo/web build",
     "typecheck": "pnpm db:build && pnpm --filter @terzo/api typecheck && pnpm --filter @terzo/web typecheck",
-    "test": "pnpm db:build && pnpm --filter @terzo/api test",
+    "test": "pnpm db:build && pnpm --filter @terzo/api test && node --test scripts/posting.test.mjs",
     "db:generate": "pnpm --filter @terzo/database generate",
     "db:build": "pnpm db:generate && pnpm --filter @terzo/database build",
     "db:migrate": "pnpm --filter @terzo/database migrate:deploy",
@@ -29,7 +29,8 @@
     "pm2:logs": "pm2 logs terzo-web terzo-api",
     "architecture:check": "node scripts/check-architecture.mjs",
     "ui:verify": "node scripts/verify-original-ui.mjs",
-    "ui:generate": "pnpm --filter @terzo/web generate:legacy"
+    "ui:generate": "pnpm --filter @terzo/web generate:legacy",
+    "ui:check-generated": "node scripts/check-generated-ui.mjs"
   },
   "devDependencies": {
     "@terzo/database": "workspace:*",
