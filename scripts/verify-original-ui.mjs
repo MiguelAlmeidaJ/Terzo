@@ -67,7 +67,7 @@ async function call(url, cookie) {
 async function expectRedirect(url, cookie, destination) {
   const res = await call(url, cookie);
   assert.ok([302, 303, 307, 308].includes(res.status), url + ' should redirect, got ' + res.status);
-  assert.equal(new URL(res.headers.get('location')).pathname, destination, url);
+  assert.equal(new URL(res.headers.get('location'), 'http://127.0.0.1:' + port).pathname, destination, url);
 }
 
 async function expectHtml(url, cookie, content) {
