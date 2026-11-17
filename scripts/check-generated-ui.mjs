@@ -22,6 +22,16 @@ assert.ok(html.includes('Criar acessos pendentes'), 'A criação em lote deve ap
 assert.ok(html.includes('/api/team/members-with-account'), 'Novo integrante deve gerar login vinculado automaticamente');
 assert.ok(html.includes('/api/team/provision-accounts'), 'Provisionamento de integrantes existentes deve estar disponível');
 assert.ok(html.includes('team-edit'), 'Contas existentes precisam poder ser editadas diretamente na Equipe');
+const definitions = [...html.matchAll(/function accUsersBody\\(\\)\\s*\\{/g)];
+assert.ok(definitions.length >= 2, 'A tela de usuários deve possuir a substituição explícita do módulo moderno.');
+const latestUsers = html.slice(definitions.at(-1).index);
+const latestEnd = latestUsers.indexOf('\\n}\\n');
+assert.ok(latestEnd > 0, 'Não foi possível localizar o fim da versão ativa do componente de usuários.');
+const activeUsers = latestUsers.slice(0, latestEnd + 2);
+assert.ok(activeUsers.includes('teamActionIcons(m,u,self)'), 'A ÚLTIMA versão ativa da tela precisa renderizar as ações por ícones.');
+assert.ok(activeUsers.includes('team-search'), 'A ÚLTIMA versão ativa da tela precisa trazer a busca.');
+assert.ok(activeUsers.includes('team-filter'), 'A ÚLTIMA versão ativa da tela precisa trazer o filtro de status.');
+assert.ok(!activeUsers.includes('>Editar login</button>'), 'Botões antigos de texto não podem continuar na renderização ativa.');
 assert.ok(html.includes('teamActionIcons(m,u,self)'), 'Ações de contas devem ser ícones com rótulos acessíveis');
 assert.ok(html.includes('aria-label="'+""+'') || html.includes('aria-label='), 'Ícones precisam possuir descrições para leitores de tela');
 assert.ok(html.includes('teamApplyFilter()'), 'A gestão de usuários precisa oferecer busca e filtros de status');
