@@ -7,7 +7,7 @@ import { StorageService } from './storage.service';
 
 type ApprovalKind = 'calendar' | 'creative';
 type FileItem = { assetId?: string; url?: string; name: string; mime?: string };
-type PostItem = { id: string; date: string; title: string; caption: string; format: string; notes: string; kind: string; movedFrom?: string };
+type PostItem = { id: string; date: string; title: string; caption: string; format: string; notes: string; kind: string; creativeId?: string; movedFrom?: string };
 type ApprovalSnapshot = {
   clientName: string;
   kind: ApprovalKind;
@@ -15,6 +15,7 @@ type ApprovalSnapshot = {
   month?: string;
   posts?: PostItem[];
   files: FileItem[];
+  creativeVersions?: Array<{ id: string; updatedAt: string }>;
 };
 
 const TOKEN_PATTERN = /^[a-f0-9]{64}$/;
@@ -117,6 +118,7 @@ export class ClientApprovalService {
         format: safeText(item.format, 100),
         notes: safeText(item.notes, 1000),
         kind: item.kind === 'special' ? 'special' : 'regular',
+        ...(ID_PATTERN.test(safeText(item.creativeId, 200)) ? { creativeId: safeText(item.creativeId, 200) } : {}),
         ...(item.movedFrom ? { movedFrom: safeText(item.movedFrom, 10) } : {}),
       }];
     }).sort((a, b) => a.date.localeCompare(b.date));
@@ -127,7 +129,22 @@ export class ClientApprovalService {
     const title = kind === 'calendar'
       ? 'Calendário de ' + month
       : safeText(data.title, 180) || 'Arte avulsa';
-    const rawFiles = this.fileItems(kind, data);
+    const posts = kind === 'calendar' ? this.posts(data, month) : undefined;
+    const linked = [...new Set((posts || []).map((post) => post.creativeId).filter((id): id is string => !!id))];
+    const creativeDocs = linked.length ? await this.prisma.document.findMany({
+      where: { collection: 'creatives', id: { in: linked } },
+      select: { id: true, data: true, updatedAt: true },
+    }) : [];
+    // A prévia do cliente só contém peças liberadas internamente e do mesmo cliente.
+    const approvedCreatives = creativeDocs.filter((doc) => {
+      const creative = doc.data as Record<string, unknown>;
+      return creative.clientId === clientId && ['Liberado para o cliente', 'Aprovado', 'Publicado'].includes(String(creative.status || ''));
+    });
+    const creativeVersions = approvedCreatives.map((doc) => ({ id: doc.id, updatedAt: String(doc.updatedAt) }));
+    const rawFiles = [
+      ...this.fileItems(kind, data),
+      ...approvedCreatives.flatMap((doc) => this.fileItems('creative', doc.data as Record<string, unknown>)),
+    ];
     const ids = [...new Set(rawFiles.map((file) => file.assetId).filter((id): id is string => !!id))];
     const assets = ids.length ? await this.prisma.asset.findMany({
       where: { id: { in: ids }, clientId },
@@ -138,14 +155,13 @@ export class ClientApprovalService {
       const asset = assets.find((a) => a.id === file.assetId);
       return asset ? [{ assetId: asset.id, name: file.name || asset.name || 'Arquivo', mime: asset.mime }] : [];
     });
-    const posts = kind === 'calendar' ? this.posts(data, month) : undefined;
     if (kind === 'calendar' && !/^\d{4}-(0[1-9]|1[0-2])$/.test(month))
       throw new BadRequestException('invalid_calendar_month');
     if (!files.length && !posts?.length) throw new BadRequestException('empty_approval');
     if (kind === 'calendar' && !files.length && !posts?.some((post) => post.title || post.caption))
       throw new BadRequestException('calendar_needs_content');
     if (kind === 'creative' && !files.length) throw new BadRequestException('creative_needs_file');
-    return { clientName, kind, title, ...(kind === 'calendar' ? { month, posts } : {}), files };
+    return { clientName, kind, title, ...(kind === 'calendar' ? { month, posts, creativeVersions } : {}), files };
   }
 
   async create(user: User, input: { kind?: string; targetId?: string }) {
@@ -239,6 +255,17 @@ export class ClientApprovalService {
     });
     if (!source || source.updatedAt !== row.sourceUpdatedAt)
       throw new ConflictException('material_updated_request_new_link');
+    const snapshot = row.snapshot as unknown as ApprovalSnapshot;
+    if (snapshot.creativeVersions?.length) {
+      const linked = await this.prisma.document.findMany({
+        where: { collection: 'creatives', id: { in: snapshot.creativeVersions.map((ref) => ref.id) } },
+        select: { id: true, updatedAt: true },
+      });
+      if (snapshot.creativeVersions.some((ref) => {
+        const doc = linked.find((item) => item.id === ref.id);
+        return !doc || String(doc.updatedAt) !== ref.updatedAt;
+      })) throw new ConflictException('linked_art_updated_request_new_link');
+    }
   }
 
   async publicView(token: string) {
