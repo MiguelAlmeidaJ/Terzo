@@ -106,6 +106,52 @@ async function teamAccountAction(kind,memberId,accountId){
  finally{teamAccountState.busy=false}
 }
 
+
+/* Icon buttons retain descriptive labels for assistive tech and hover tooltips. */
+function teamIcon(name){
+ const paths={
+ edit:'<path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L9 17l-4 1 1-4Z"/>',
+ reset:'<circle cx="7" cy="16" r="4"/><path d="M10 13 21 2m-4 4 3 3"/>',
+ revoke:'<path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2"/>',
+ off:'<rect x="3" y="5" width="18" height="14" rx="3"/><path d="m9 10 6 4m0-4-6 4"/>',
+ on:'<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>',
+ unlink:'<path d="m10 13 4-4m-6 8H7a5 5 0 0 1 0-10h3m4 0h3a5 5 0 0 1 0 10h-3M4 20 20 4"/>',
+ view:'<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',
+ add:'<circle cx="12" cy="12" r="9"/><path d="M12 8v8m-4-4h8"/>',
+ refresh:'<path d="M3 12a9 9 0 0 1 15.4-6.4L21 8M21 3v5h-5M21 12a9 9 0 0 1-15.4 6.4L3 16M3 21v-5h5"/>',
+ search:'<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>'
+ };
+ return '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(paths[name]||paths.edit)+'</svg>';
+}
+function teamAction(act,label,icon,mid,uid,style=''){
+ return '<button type="button" class="team-icon '+style+'" data-act="'+esc(act)+'" data-mid="'+esc(mid||'')+'" data-uid="'+esc(uid||'')+'" aria-label="'+esc(label)+'" title="'+esc(label)+'">'+teamIcon(icon)+'</button>';
+}
+function teamActionIcons(m,u,self){
+ const name=m?.name||u?.name||'usuário',mid=m?.id||'',uid=u?.id||'';
+ if(!u)return m&&!m.disabled&&!m.accountId?teamAction('team-provision-one','Criar acesso para '+name,'add',mid,'','team-icon-primary'):'';
+ let html=teamAction('team-edit','Editar login de '+name,'edit',mid,uid);
+ if(!self){
+  html+=teamAction('team-reset','Nova senha para '+name,'reset',mid,uid);
+  html+=teamAction('team-revoke','Revogar sessões de '+name,'revoke',mid,uid);
+  html+=teamAction(u.status==='active'?'team-off':'team-on',(u.status==='active'?'Desativar':'Reativar')+' '+name,u.status==='active'?'off':'on',mid,uid,u.status==='active'?'team-icon-danger':'team-icon-success');
+  html+=teamAction('team-unlink','Desvincular conta de '+name,'unlink',mid,uid,'team-icon-danger');
+ }
+ return html;
+}
+function teamApplyFilter(){
+ const q=String(document.getElementById('team-search')?.value||'').trim().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+ const status=document.getElementById('team-filter')?.value||'all';
+ let count=0;
+ document.querySelectorAll('.team-users tbody tr[data-query]').forEach(row=>{
+  const show=(!q||row.dataset.query.includes(q))&&(status==='all'||row.dataset.status===status);
+  row.hidden=!show;if(show)count++;
+ });
+ const el=document.getElementById('team-visible');if(el)el.textContent=count+' integrante'+(count===1?'':'s');
+ const empty=document.getElementById('team-no-results');if(empty)empty.hidden=count>0;
+}
+document.addEventListener('input',e=>{if(e.target.id==='team-search')teamApplyFilter()});
+document.addEventListener('change',e=>{if(e.target.id==='team-filter')teamApplyFilter()});
+
 function accUsersBody(){
  if(me.canEdit&&!teamAccountState.loaded&&!teamAccountState.loading)teamLoadUsers();
  const people=S.members.slice().sort((a,b)=>(!!a.disabled-!!b.disabled)||a.name.localeCompare(b.name,'pt'));
@@ -117,22 +163,16 @@ function accUsersBody(){
  const lastAccess=m=>m.lastSeen?fD(m.lastSeen.slice(0,10))+' · '+esc(ago(m.lastSeen)):'Nunca entrou';
  const rows=people.map(m=>{
   const u=teamAccountOf(m),self=teamIsSelf(m),p=accProfile(m);
-  return '<tr class="'+(m.disabled?'off':'')+'">'+
-   '<td><span class="row" style="gap:8px;flex-wrap:nowrap">'+av(m.id)+'<span><b>'+esc(m.name)+'</b><small>'+esc(m.area||'')+(m.role?' · '+esc(m.role):'')+'</small></span></span></td>'+
-   '<td>'+(u?'<b>'+esc(u.username)+'</b><small>'+esc(u.email)+'</small>':m.accountId?'<span class="pill p-critico">Vínculo sem conta</span>':'<span class="pill">Sem login</span>')+'</td>'+
-   '<td><select class="sel" data-acc-prof="'+esc(m.id)+'" aria-label="Perfil de '+esc(m.name)+'" '+(self?'disabled title="Não altere seu próprio perfil"':'')+'>'+
+  return '<tr class="team-row'+(m.disabled?' off':'')+'" data-query="'+esc([m.name,m.area,m.role,u?.username,u?.email].join(' ').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase())+'" data-status="'+(m.disabled||u?.status==='disabled'?'disabled':u?'active':'missing')+'">'+
+   '<td><div class="team-person">'+av(m.id)+'<span><b>'+esc(m.name)+'</b><small>'+esc(m.area||'')+(m.role?' · '+esc(m.role):'')+'</small></span></div></td>'+ 
+   '<td class="team-identity">'+(u?'<b>'+esc(u.username)+'</b><small>'+esc(u.email)+'</small>':m.accountId?'<span class="team-placeholder">Vínculo sem conta</span>':'<span class="team-placeholder">Acesso não criado</span>')+'</td>'+ 
+   '<td><select class="sel team-role" data-acc-prof="'+esc(m.id)+'" aria-label="Perfil de '+esc(m.name)+'" '+(self?'disabled title="Não altere seu próprio perfil"':'')+'>'+
     Object.entries(ACC_PL).map(([k,label])=>'<option value="'+k+'" '+(k===p?'selected':'')+'>'+label+'</option>').join('')+'</select></td>'+
-   '<td><span class="pill '+(u?.status==='active'&&!m.disabled?'p-ok':u||m.disabled?'p-critico':'')+'">'+esc(teamStatus(u,m))+'</span>'+(u?.must_change?'<small>Troca de senha pendente</small>':'')+'</td>'+
-   '<td>'+esc(u?.last_login?new Date(u.last_login).toLocaleDateString('pt-BR'):lastAccess(m))+'</td>'+
-   '<td><span class="row acc-acts">'+(u?
-     '<button class="btn sm" data-act="team-edit" data-mid="'+esc(m.id)+'" data-uid="'+esc(u.id)+'">Editar login</button>'+
-     (self?'': '<button class="btn sm" data-act="team-reset" data-mid="'+esc(m.id)+'" data-uid="'+esc(u.id)+'">Nova senha</button>'+
-       '<button class="btn sm ghost" data-act="team-revoke" data-mid="'+esc(m.id)+'" data-uid="'+esc(u.id)+'">Revogar sessões</button>'+
-       '<button class="btn sm" data-act="team-'+(u.status==='active'?'off':'on')+'" data-mid="'+esc(m.id)+'" data-uid="'+esc(u.id)+'">'+(u.status==='active'?'Desativar':'Reativar')+'</button>'+
-       '<button class="btn sm ghost" data-act="team-unlink" data-mid="'+esc(m.id)+'" data-uid="'+esc(u.id)+'">Desvincular</button>'):
-     !m.accountId&&!m.disabled?'<button class="btn sm primary" data-act="team-provision-one" data-mid="'+esc(m.id)+'">Criar acesso</button>':'')+
-     (!m.disabled&&!self?'<button class="btn sm ghost" data-act="acc-va" data-id="'+esc(m.id)+'">Visualizar como</button>':'')+
-    '</span></td></tr>';
+   '<td><span class="team-state '+(m.disabled||u?.status==='disabled'?'is-off':u?'is-on':'is-missing')+'"><i></i>'+esc(teamStatus(u,m))+'</span>'+(u?.must_change?'<small class="team-pending">Troca de senha pendente</small>':'')+'</td>'+ 
+   '<td class="team-last">'+(u?.last_login?'<b>'+esc(new Date(u.last_login).toLocaleDateString('pt-BR'))+'</b>':'<span>Nunca entrou</span>')+'</td>'+ 
+   '<td class="team-actions-cell"><div class="team-actions" role="group" aria-label="Ações de '+esc(m.name)+'">'+teamActionIcons(m,u,self)+
+    (!m.disabled&&!self?'<button type="button" class="team-icon" data-act="acc-va" data-id="'+esc(m.id)+'" aria-label="Visualizar como '+esc(m.name)+'" title="Visualizar como '+esc(m.name)+'">'+teamIcon('view')+'</button>':'')+
+   '</div></td></tr>';
  }).join('');
  const loose=users.filter(u=>!people.some(m=>m.accountId===u.id||m.id===u.member_id));
  const requests=pending.length?'<section class="panel"><h2>Pedidos de acesso <span class="sub">'+pending.length+'</span></h2><div class="acc-reqs">'+pending.map(r=>
@@ -142,15 +182,15 @@ function accUsersBody(){
  const log=(S.access_log||[]).slice().sort((a,b)=>String(b.at).localeCompare(String(a.at))).slice(0,25);
  return '<div class="acc-header-tools"><div><b>Contas e permissões da equipe</b><p class="mut">Crie, edite e redefina logins aqui, sem sair do Terzo. Novas pessoas recebem acesso automaticamente ao serem cadastradas.</p></div>'+
    '<div class="row">'+(free.length?'<button class="btn primary" data-act="team-provision-all">Criar acessos pendentes ('+free.length+')</button>':'')+
-   '<button class="btn" data-act="team-reload">Atualizar logins</button></div></div>'+
+   '<button class="btn team-reload" data-act="team-reload">'+teamIcon('refresh')+' Atualizar</button></div></div>'+
   (teamAccountState.error?'<div class="acc-warning">'+esc(teamAccountState.error)+'</div>':'')+
   '<div class="kpis acc-k"><div class="kpi"><div class="l">Com acesso ativo</div><div class="v">'+countActive+'</div></div>'+
   '<div class="kpi"><div class="l">Sem conta vinculada</div><div class="v">'+free.length+'</div><div class="s">Criação automática disponível</div></div>'+
   '<div class="kpi"><div class="l">Desativados</div><div class="v">'+disabled+'</div></div>'+
   '<div class="kpi"><div class="l">Pedidos de acesso</div><div class="v">'+pending.length+'</div></div></div>'+
-  requests+'<section class="panel"><h2>Integrantes e acessos</h2><div class="acc-tw"><table class="acc-t"><thead><tr>'+
+  requests+'<section class="panel team-users-panel"><div class="team-table-head"><div><h2>Integrantes e acessos</h2><small id="team-visible">'+people.length+' integrantes</small></div><div class="team-table-filters"><label class="team-search">'+teamIcon('search')+'<input id="team-search" type="search" placeholder="Buscar nome ou e-mail" aria-label="Buscar integrante" autocomplete="off"></label><select id="team-filter" aria-label="Filtrar por status"><option value="all">Todos</option><option value="active">Ativos</option><option value="missing">Sem login</option><option value="disabled">Desativados</option></select></div></div><div class="acc-tw"><table class="acc-t team-users"><thead><tr>'+ 
   '<th>Integrante</th><th>Usuário / e-mail</th><th>Perfil</th><th>Status</th><th>Último login</th><th>Ações</th>'+
-  '</tr></thead><tbody>'+rows+'</tbody></table></div></section>'+
+  '</tr></thead><tbody>'+rows+'</tbody></table></div><div id="team-no-results" class="team-no-results" hidden>Nenhum integrante encontrado.</div></section>'+ 
   (loose.length?'<section class="panel"><h2>Contas sem cadastro de Equipe <span class="sub">'+loose.length+'</span></h2><div class="acc-loose">'+loose.map(u=>'<div class="acc-loose-row"><span><b>'+esc(u.name)+'</b><small>'+esc(u.username)+' · '+esc(u.email)+'</small></span><button class="btn sm" data-act="team-edit" data-mid="" data-uid="'+esc(u.id)+'">Editar e vincular</button></div>').join('')+'</div></section>':'')+
   '<section class="panel acc-how"><h2>Como funciona</h2><ol>'+
   '<li><b>Novo integrante:</b> ao cadastrar em Equipe, o sistema cria o usuário e a senha provisória automaticamente, sem passar por outra tela.</li>'+
@@ -195,4 +235,5 @@ document.addEventListener('click',async e=>{
 '.acc-loose-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px;border-bottom:1px solid var(--line)}'+
 '.acc-loose-row small{display:block;color:var(--muted)}'+
 '@media(max-width:760px){.acc-header-tools .row{width:100%}.acc-header-tools .btn{flex:1}.acc-credentials{min-width:620px}}';
+style.textContent+="\n.team-users-panel{padding:0!important;overflow:hidden}\n.team-table-head{padding:20px 20px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}\n.team-table-head h2{font-size:17px;margin:0 0 4px;letter-spacing:-.025em}\n.team-table-head small{font-size:12px;color:var(--muted)}\n.team-table-filters{display:flex;align-items:center;flex-wrap:wrap;gap:9px}\n.team-search{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:9px;padding:0 10px;background:var(--surface)}\n.team-search svg{color:var(--muted);flex:none}.team-search input{border:0;background:transparent;font-size:12px;width:200px;height:37px;outline:0;min-width:0}\n.team-search:focus-within{border-color:#d8395d;box-shadow:0 0 0 3px rgba(216,57,93,.09)}\n.team-table-filters select{height:39px;border:1px solid var(--line);border-radius:9px;background:var(--surface);padding:0 10px;font-size:12px}\n.team-users{width:100%;min-width:960px;table-layout:fixed;border-collapse:collapse}\n.team-users th{background:var(--surface-2);padding:12px 13px;font-size:10px;letter-spacing:.075em}\n.team-users th:nth-child(1){width:21%}.team-users th:nth-child(2){width:22%}.team-users th:nth-child(3){width:13%}\n.team-users th:nth-child(4){width:12%}.team-users th:nth-child(5){width:12%}.team-users th:nth-child(6){width:20%;text-align:center}\n.team-users td{padding:13px;border-bottom:1px solid var(--line);vertical-align:middle;font-size:12px}\n.team-users tbody tr:last-child td{border-bottom:none}.team-users tbody tr:hover{background:rgba(232,57,85,.03)}\n.team-users tbody tr[hidden]{display:none}\n.team-person{display:flex;align-items:center;gap:10px;min-width:0}.team-person>.av,.team-person>img{flex:none}\n.team-person span{min-width:0}.team-person b,.team-identity b{display:block;font-size:12.5px;color:var(--ink)}\n.team-person small,.team-identity small{display:block;font-size:11px;line-height:1.5;color:var(--muted);overflow-wrap:anywhere}\n.team-placeholder{color:var(--muted);font-size:11px;background:var(--surface-2);border-radius:100px;padding:5px 9px}\n.team-role{font-size:12px!important;width:100%;min-width:0!important;padding:8px!important;border-radius:9px}\n.team-state{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;font-size:11px;font-weight:800;border-radius:100px;white-space:nowrap}\n.team-state i{width:6px;height:6px;background:currentColor;border-radius:100%}\n.team-state.is-on{color:#187b51;background:#e8f6ee}.team-state.is-off{color:#bd3a52;background:#fff0f2}.team-state.is-missing{color:#777;background:#f0eff0}\n.team-pending{display:block;font-size:10px;color:var(--muted);margin-top:5px}\n.team-last span{color:var(--muted);font-size:11px}.team-last b{font-size:11.5px}\n.team-actions{display:flex;align-items:center;justify-content:center;gap:4px;flex-wrap:wrap}\n.team-icon{width:32px;height:32px;min-width:32px;border-radius:9px;border:1px solid transparent;background:transparent;color:#777;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;transition:background .15s,color .15s}\n.team-icon:hover{background:#f9e9ee;color:#bd2b4d;border-color:#eedbe0}.team-icon:focus-visible{outline:2px solid #d83a5a;outline-offset:2px}\n.team-icon-primary{background:#fbe4ec;color:#d92e53}.team-icon-primary:hover{background:#f8d4df}\n.team-icon-danger:hover{color:#b02d49}.team-icon-success:hover{color:#19784e;background:#ebf7ef}\n.team-no-results{text-align:center;color:var(--muted);padding:28px;font-size:13px}\n.team-reload{display:inline-flex;align-items:center;gap:7px}.team-reload svg{width:15px;height:15px}\n@media(max-width:740px){.team-table-head{padding:14px}.team-table-filters{width:100%}.team-search{flex:1}.team-search input{width:100%}}\n@media(prefers-reduced-motion:reduce){.team-icon{transition:none}}\n";
  document.head.appendChild(style)})();
