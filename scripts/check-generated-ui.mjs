@@ -10,6 +10,9 @@ const inline = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].
 assert.ok(inline.length > 0, 'Nenhum script inline foi encontrado');
 for (let i=0;i<inline.length;i++) new Script(inline[i], { filename: 'legacy-inline-'+i+'.js' });
 assert.ok(html.includes('calPostingPanel(c)'), 'O painel de postagens não foi inserido no calendário');
+assert.ok(html.includes('post-calendar'), 'A grade visual mensal não foi gerada');
+assert.ok(html.includes('post-cell.can-drop'), 'A realocação por drag/drop não foi incluída');
+assert.ok(html.includes('cal-view-tabs'), 'O modal não contém navegação por abas');
 assert.ok(html.includes('caLinkButton('), 'A validação externa não foi inserida na UI');
 assert.ok(html.includes("Dias de postagem por semana"), 'Dias de postagem ausentes no cadastro');
 console.log('Scripts do CRM original e módulos editoriais: sintaxe compilada com sucesso.');
