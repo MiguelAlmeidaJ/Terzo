@@ -22,4 +22,8 @@ assert.ok(html.includes('Criar acessos pendentes'), 'A criação em lote deve ap
 assert.ok(html.includes('/api/team/members-with-account'), 'Novo integrante deve gerar login vinculado automaticamente');
 assert.ok(html.includes('/api/team/provision-accounts'), 'Provisionamento de integrantes existentes deve estar disponível');
 assert.ok(html.includes('team-edit'), 'Contas existentes precisam poder ser editadas diretamente na Equipe');
+assert.ok(html.includes('teamActionIcons(m,u,self)'), 'Ações de contas devem ser ícones com rótulos acessíveis');
+assert.ok(html.includes('aria-label="'+""+'') || html.includes('aria-label='), 'Ícones precisam possuir descrições para leitores de tela');
+assert.ok(html.includes('teamApplyFilter()'), 'A gestão de usuários precisa oferecer busca e filtros de status');
+assert.ok(html.includes('team-users-panel'), 'O novo layout da tabela de usuários deve estar presente');
 console.log('Scripts do CRM original e módulos editoriais: sintaxe compilada com sucesso.');
