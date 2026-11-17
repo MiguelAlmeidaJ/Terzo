@@ -21,6 +21,11 @@ async function bootstrap() {
   server.use('/api/assets', (req: Request, res: Response, next: NextFunction) => req.method === 'POST' && req.path === '/'
     ? express.raw({ type: '*/*', limit: `${config.maxUploadMB}mb` })(req, res, next)
     : next());
+  // User avatars are uploaded as raw JPEG bytes and stored only in PostgreSQL.
+  server.use('/api/profile-photo', (req: Request, res: Response, next: NextFunction) =>
+    req.method === 'POST' && req.path === '/'
+      ? express.raw({ type: '*/*', limit: '512kb' })(req, res, next)
+      : next());
   server.use(express.json({ limit: '1.5mb' }));
   server.use((req: Request, res: Response, next: NextFunction) => {
     if (req.path.startsWith('/api/') && !['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
