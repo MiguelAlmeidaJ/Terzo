@@ -142,6 +142,8 @@ export class ClientApprovalService {
     if (kind === 'calendar' && !/^\d{4}-(0[1-9]|1[0-2])$/.test(month))
       throw new BadRequestException('invalid_calendar_month');
     if (!files.length && !posts?.length) throw new BadRequestException('empty_approval');
+    if (kind === 'calendar' && !files.length && !posts?.some((post) => post.title || post.caption))
+      throw new BadRequestException('calendar_needs_content');
     if (kind === 'creative' && !files.length) throw new BadRequestException('creative_needs_file');
     return { clientName, kind, title, ...(kind === 'calendar' ? { month, posts } : {}), files };
   }
