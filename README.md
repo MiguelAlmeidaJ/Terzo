@@ -2,13 +2,15 @@
 
 Monorepo pnpm da Agência Terceiro Andar: **Next.js 16 + React 19**, **NestJS 11** e **Prisma 7 + PostgreSQL**. Arquivos e pastas de clientes integram-se ao Nextcloud via WebDAV.
 
-> **Status:** a branch monorepo está em homologação. A interface React inicial ainda não reproduz todos os fluxos avançados do CRM legado. Não fazer merge em produção sem teste funcional.
+> **Recuperação visual em homologação:** a branch `refactor/restore-original-ui` recupera o CRM original por uma camada temporária de compatibilidade dentro do monorepo. A API, Prisma, Nextcloud e pnpm continuam os mesmos. A conversão integral da UI para componentes React será uma etapa separada.
 
 ## Estrutura
 
 ~~~text
 apps/
   web/                  Next.js App Router + TypeScript
+    legacy-src/         Fontes originais do CRM, isolados do restante do monorepo
+    public/legacy/      HTML estático gerado e páginas de login/admin originais
   api/                  NestJS: autenticação, documentos, Nextcloud
     assets/brand.png    Marca institucional
     rules.json          Políticas de acesso
@@ -29,7 +31,7 @@ O Prisma é um pacote interno compilado separadamente e usado pela API.
 
 ## Requisitos
 
-Node.js 22+, Corepack e pnpm 10.19.0. Docker Compose para PostgreSQL local. Seu proxy reverso externo pode ser utilizado sem qualquer Nginx no repositório.
+Node.js 22+, Corepack, pnpm 10.19.0 e Python 3.8+ (necessário para gerar a interface original). Docker Compose para PostgreSQL local. Seu proxy reverso externo pode ser utilizado sem qualquer Nginx no repositório.
 
 ## Instalação
 
@@ -54,19 +56,21 @@ O Next.js encaminha /api, /_blob, /brand e /healthz para API_INTERNAL_URL. Seu p
 
 | Comando | Descrição |
 | --- | --- |
-| pnpm dev | Inicia API e web (gerando e compilando Prisma) |
+| pnpm dev | Inicia API e web, gerando a interface original e o Prisma |
 | pnpm typecheck | Verifica todos os workspaces |
 | pnpm test | Executa regressões da API e do Nextcloud simulado |
-| pnpm build | Compila Prisma, API e Next.js |
+| pnpm build | Compila Prisma, API e Next.js e gera o HTML original |
 | pnpm db:generate | Gera o cliente Prisma |
 | pnpm db:migrate | Aplica migrations existentes |
 | pnpm db:backup | Cria backup validado do PostgreSQL |
-| pnpm verify:local | Smoke test com Chrome |
+| pnpm verify:local | Smoke test com Chrome da interface original |
 | pnpm verify:storage | Smoke test real do Nextcloud |
 | pnpm nextcloud:reconcile:dry | Simula reconciliação do Nextcloud |
 | pnpm nextcloud:reconcile | Reconcilia objetos pendentes |
 | pnpm nextcloud:verify | Inspeciona vínculos e integridade |
-| pnpm pm2:reload | Reinicia serviços pelo PM2 |
+| pnpm pm2:reload | Reinicia serviços pelo PM2
+| pnpm ui:generate | Regenera a interface original a partir dos fontes históricos |
+| pnpm ui:verify | Testa rotas Next.js, autenticação e bloqueio do admin | |
 
 Para desenvolver o schema, use pnpm --filter @terzo/database migrate:dev. Faça backup antes de executar qualquer migration com dados reais.
 
@@ -85,10 +89,32 @@ A API roda de apps/api/dist/main.js e o frontend é iniciado pelo Next.js do seu
 
 Ative NEXTCLOUD_ENABLED e configure NEXTCLOUD_URL, NEXTCLOUD_USERNAME, NEXTCLOUD_USER_ID e NEXTCLOUD_APP_PASSWORD no .env. Credenciais WebDAV ficam apenas no servidor. Os vínculos cliente/pasta, migrations e mecanismos de reconciliação permanecem na API e no package database.
 
-## Mudança em relação à versão anterior
+## Recuperação da interface original
 
-Foram removidos src/base.html, src/build.py, src/modulos/crm_*.js, a pasta pública legacy, o runtime JavaScript antigo, deploy/nginx.conf e package-lock.json.
+A branch de recuperação reintroduz os **fontes exatos do CRM anterior** em `apps/web/legacy-src`: `base.html`, `build.py` e os módulos `crm_*.js`. No início de `pnpm dev` ou `pnpm build`, o gerador cria `apps/web/public/legacy/index.html`, que não é versionado. O runtime de compatibilidade original continua conversando com a API NestJS/PostgreSQL/Nextcloud.
 
-A nova interface React oferece login, alteração de senha, painel de módulos, cadastro básico e gerenciamento de usuários. **Fluxos complexos de planejamento, criativos e produção ainda precisam de reimplementação específica para atingir a paridade com o CRM legado.** Não use a branch como substituição imediata da instalação de produção.
+As URLs públicas seguem **iguais**: `/` (painel), `/login` e `/admin`. O proxy do Next.js valida a sessão para o painel e exige a função administrativa para `/admin`, inclusive quando uma página estática é requisitada diretamente em `/legacy/*`. O login permanece público.
 
-Consulte [o guia do monorepo](docs/monorepo.md) e mantenha o PR de refatoração separado da main até a homologação.
+Isso restaura a apresentação e a implementação de comportamentos existentes sem reescrever cada módulo. **Não significa que o HTML/JS antigo tenha sido convertido para React.** Essa substituição deve ser incremental, mantendo os fluxos e aparência aprovados, até remover a camada de compatibilidade com segurança.
+
+**A estrutura pnpm e a separação de apps e packages são preservadas.** Não há configuração Nginx no repositório.
+
+### Homologação no Windows
+
+~~~powershell
+git fetch origin
+git switch -c teste-restauracao --track origin/refactor/restore-original-ui
+corepack enable
+py -3 --version
+pnpm install --frozen-lockfile
+pnpm architecture:check
+pnpm typecheck
+pnpm test
+pnpm build
+pnpm ui:verify
+pnpm dev
+~~~
+
+Se o Windows não tiver `py`, instale Python 3 ou verifique `python --version`. O comando `pnpm ui:generate` procura `py -3`, `python` e `python3`.
+
+Consulte [roteiro da restauração](docs/restauracao-interface-original.md) para a comparação visual, verificação das permissões e fluxos do Terzo.
