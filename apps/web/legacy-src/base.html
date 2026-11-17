@@ -2989,7 +2989,11 @@ function memberForm(x,pre){const isNew=!x;x=x||{area:'Estratégia',...(pre||{})}
   {k:'email',l:'E-mail',t:'email',full:1,hint:isNew&&isAdmin()&&!pre?'Gerado automaticamente com o domínio terceiroandar.com.br.':'Dados profissionais. Para editar o login, use Gerenciamento de usuários.'}],
   onSave:async v=>{const rec={...x,...v};if('adm' in v)rec.admin=v.adm==='sim';delete rec.adm;if('rk' in v)rec.hideRank=v.rk==='nao';delete rec.rk;if('capacity' in v)rec.capacity=+v.capacity||15;if(isNew){rec.createdAt=today();rec.color=COLORS[S.members.length%COLORS.length]}
    if(isNew&&isAdmin()&&!pre){
-     const created=await teamApi('/api/team/members-with-account','POST',{name:rec.name,area:rec.area,role:rec.role,capacity:rec.capacity,hideRank:rec.hideRank,admin:rec.admin,leader:rec.leader});
+     if(teamAccountState.busy){toast('Uma criação de conta já está em andamento.');throw Error('busy')}
+     teamAccountState.busy=true;
+     let created;
+     try{created=await teamApi('/api/team/members-with-account','POST',{name:rec.name,area:rec.area,role:rec.role,capacity:rec.capacity,hideRank:rec.hideRank,admin:rec.admin,leader:rec.leader})}
+     finally{teamAccountState.busy=false}
      toast('Integrante e acesso criados com sucesso.');
      setTimeout(()=>teamShowCredentials([created],[]),90);
      return;
