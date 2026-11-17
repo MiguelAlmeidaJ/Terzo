@@ -153,8 +153,8 @@ function calDetail(id){const c0=byId('calendars',id);if(c0&&!calVisible(c0)){toa
  const H=[...(c.history||[])].reverse();
  const hist=`<div class="sec"><h3>Histórico</h3>${H.length?`<ul class="cal-hist">${H.map(h=>`<li><time>${calDT(h.at)}</time><div><b>${esc(calHistTxt(h))}</b>${h.by?` <span style="color:var(--muted)">· ${esc(calFn(h.by))}</span>`:''}${h.note?`<p>${esc(h.note)}</p>`:''}</div></li>`).join('')}</ul>`:'<p style="margin:0;color:var(--muted);font-size:13px">Sem movimentações ainda.</p>'}</div>`;
  openModal(`<div class="mh"><div class="row" style="gap:10px;flex-wrap:nowrap;min-width:0">${clientLogo(c.clientId,38)}<div style="min-width:0"><h2>${esc(cName(c.clientId))}</h2><p style="margin:2px 0 0;color:var(--muted);font-size:13px">Calendário de ${calMonthL(c.month)}</p></div></div><button class="x" data-act="close" aria-label="Fechar">×</button></div>
- <div class="mb">${steps}${info}${calNextBox(c)}${obs}${tk}${hist}${stamp(c)}</div>
- <div class="mf">${calCanEdit(c)?`<button class="btn" data-act="cal-edit" data-id="${esc(c.id)}">Editar responsáveis, prazo e observações</button>`:''}${isAdmin()?`${c.stage!=='entregue'?`<button class="btn cal-del" data-act="cal-del" data-id="${esc(c.id)}">Excluir</button>`:''}<button class="btn" data-act="cal-transfer" data-id="${esc(c.id)}">Transferir</button>`:''}<span class="spacer"></span><button class="btn" data-act="close">Fechar</button></div>`,{rerender:draw})};draw()}
+ <div class="mb">${steps}${info}${calNextBox(c)}${calPostingPanel(c)}${obs}${tk}${hist}${stamp(c)}</div>
+ <div class="mf">${calCanEdit(c)?`<button class="btn" data-act="cal-edit" data-id="${esc(c.id)}">Editar responsáveis, prazo e observações</button>`:''}${caLinkButton('calendar',c)}${isAdmin()?`${c.stage!=='entregue'?`<button class="btn cal-del" data-act="cal-del" data-id="${esc(c.id)}">Excluir</button>`:''}<button class="btn" data-act="cal-transfer" data-id="${esc(c.id)}">Transferir</button>`:''}<span class="spacer"></span><button class="btn" data-act="close">Fechar</button></div>`,{rerender:draw})};draw()}
 function calHistTxt(h){const L=s=>CAL_L[s]||s;
  return {criado:'Calendário criado',ajuste:'Devolvido para ajustes',aprovado:'Aprovado pela liderança',entregue:'Entregue ao cliente',obs:'Observação',edit:'Dados atualizados',transfer:'Transferido de designer',reaberto:'Reaberto'}[h.k]||(h.from&&h.to?L(h.from)+' → '+L(h.to):L(h.to))}
 
@@ -184,9 +184,9 @@ function calForm(c,pre){const isNew=!c;const base=c||{month:ui.calMonth,stage:'p
  fields.push({k:'notes',l:'Observações',t:'textarea',full:1,ph:'Datas comemorativas, campanhas do mês, pedidos do cliente…'});
  formModal({title:isNew?'Novo calendário':'Editar calendário · '+cName(base.clientId),values,fields,back:isNew?null:()=>calDetail(c.id),
   onSave:async v=>{const art=v.artId==='__same'?v.copyId:v.artId;
-   if(isNew){if(!/^\d{4}-\d{2}$/.test(v.month)){toast('Escolha o mês de referência.');throw new Error('m')}
+   if(isNew){if(!calBuildPosts(byId('clients',v.clientId),v.month).length){toast('Defina os dias de postagem no cadastro do cliente antes de criar o calendário.');throw new Error('postingDays')}if(!/^\d{4}-\d{2}$/.test(v.month)){toast('Escolha o mês de referência.');throw new Error('m')}
     const id=calId(v.clientId,v.month);if(byId('calendars',id)){toast('Já existe o calendário de '+cName(v.clientId)+' em '+calMonthL(v.month)+'.');throw new Error('dup')}
-    const mm=myMember();await put('calendars',id,{clientId:v.clientId,month:v.month,copyId:v.copyId,artId:art,due:v.due,notes:v.notes,stage:'pendente',rounds:0,createdAt:new Date().toISOString(),
+    const mm=myMember();await put('calendars',id,{clientId:v.clientId,month:v.month,copyId:v.copyId,artId:art,due:v.due,notes:v.notes,posts:calBuildPosts(byId('clients',v.clientId),v.month),stage:'pendente',rounds:0,createdAt:new Date().toISOString(),
      history:[{at:new Date().toISOString(),by:mm?.id||'',k:'criado',to:'pendente',note:calOwnersTxt({copyId:v.copyId,artId:art})}]});
     ui.calMonth=v.month;toast('Calendário criado · '+cName(v.clientId));setTimeout(()=>calDetail(id),60);return}
    const ch=[];if(c.copyId!==v.copyId||c.artId!==art)ch.push(calOwnersTxt(c)+' → '+calOwnersTxt({copyId:v.copyId,artId:art}));
@@ -209,9 +209,9 @@ function calSuggest(cl,month){const [y,m]=month.split('-').map(Number);const pre
 function calGenModal(){if(!isAdmin())return;const month=ui.calMonth;
  const cls=S.clients.filter(x=>x.stage==='Fechado').sort((a,b)=>a.name.localeCompare(b.name,'pt'));
  const mo=S.members.filter(m=>m.area!=='Comercial').sort((a,b)=>a.name.localeCompare(b.name,'pt'));
- const rows=cls.map(cl=>{const ex=byId('calendars',calId(cl.id,month));const sg=ex?null:calSuggest(cl,month);
+ const rows=cls.map(cl=>{const ex=byId('calendars',calId(cl.id,month));const sg=ex?null:calSuggest(cl,month);const scheduled=calBuildPosts(cl,month).length;
   if(ex)return `<label class="g" style="opacity:.6"><input type="checkbox" disabled checked><span><b>${esc(cl.name)}</b><small>já cadastrado · ${esc(CAL_L[ex.stage])}</small></span><span style="font-size:12.5px;color:var(--muted)">${esc(calSame(ex)?calFn(ex.copyId):calFn(ex.copyId)+' / '+calFn(ex.artId))}</span></label>`;
-  return `<label class="g"><input type="checkbox" class="cal-g-ck" data-c="${cl.id}" ${sg?'checked':''}><span><b>${esc(cl.name)}</b><small>${sg?esc('Sugestão: '+sg.from):'Sem responsável definido no cadastro'}</small></span><select class="cal-g-who" data-c="${cl.id}" aria-label="Responsável por ${esc(cl.name)}"><option value="">A definir</option>${mo.map(m=>`<option value="${m.id}" ${sg&&sg.copyId===m.id?'selected':''}>${esc(m.name)}</option>`).join('')}</select></label>`}).join('');
+  return `<label class="g"><input type="checkbox" class="cal-g-ck" data-c="${cl.id}" ${scheduled?(sg?'checked':''):'disabled'}><span><b>${esc(cl.name)}</b><small>${scheduled?(sg?esc('Sugestão: '+sg.from):'Sem responsável definido no cadastro'):'Configure os dias de postagem no cadastro'} · ${scheduled} postagens</small></span><select class="cal-g-who" data-c="${cl.id}" aria-label="Responsável por ${esc(cl.name)}"><option value="">A definir</option>${mo.map(m=>`<option value="${m.id}" ${sg&&sg.copyId===m.id?'selected':''}>${esc(m.name)}</option>`).join('')}</select></label>`}).join('');
  openModal(`<div class="mh"><div><h2>Gerar calendários · ${calMonthL(month)}</h2><p style="margin:2px 0 0;color:var(--muted);font-size:13px">Clientes ativos (fechados). Nada é criado até você confirmar.</p></div><button class="x" data-act="close" aria-label="Fechar">×</button></div>
  <div class="mb"><p style="margin:0;font-size:14px;color:var(--muted)">Marque os clientes que têm calendário neste mês e confira o responsável. Ele fica com a copy e as artes; se forem pessoas diferentes, ajuste depois no próprio calendário.</p>
   <label class="fld" style="max-width:260px"><span>Data prevista de entrega (todos)</span><input type="date" id="cal-g-due"><small>Opcional. Pode ser ajustada em cada calendário.</small></label>
@@ -270,7 +270,7 @@ document.addEventListener('click',async e=>{const b=e.target.closest('[data-act]
   const pick=[...document.querySelectorAll('.cal-g-ck:checked')].map(x=>x.dataset.c).filter(cid=>!byId('calendars',calId(cid,month)));
   if(!pick.length){toast('Marque pelo menos um cliente.');return}b.disabled=true;let n=0;
   for(const cid of pick){const who=document.querySelector(`.cal-g-who[data-c="${cid}"]`)?.value||'';
-   await put('calendars',calId(cid,month),{clientId:cid,month,copyId:who,artId:who,due,notes:'',stage:'pendente',rounds:0,createdAt:now,history:[{at:now,by:mm?.id||'',k:'criado',to:'pendente',note:'Gerado com os calendários do mês · '+calOwnersTxt({copyId:who,artId:who})}]});n++}
+   await put('calendars',calId(cid,month),{clientId:cid,month,copyId:who,artId:who,due,notes:'',posts:calBuildPosts(byId('clients',cid),month),stage:'pendente',rounds:0,createdAt:now,history:[{at:now,by:mm?.id||'',k:'criado',to:'pendente',note:'Gerado com os calendários do mês · '+calOwnersTxt({copyId:who,artId:who})}]});n++}
   closeModal();toast(n+' calendário'+(n>1?'s':'')+' criado'+(n>1?'s':'')+' em '+calMonthL(month));break}
  }}catch(err){b.disabled=false}},true);
 
