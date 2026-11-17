@@ -10,6 +10,18 @@ Cada postagem tem data, tipo (**recorrente** ou **especial**), tema, formato, co
 
 Uma mudança no calendário depois de uma validação interna final invalida o registro de aprovação interna (`approvedAt`), exigindo nova validação da liderança. Uma mudança no documento também torna antigos links externos inválidos.
 
+### Calendário visual e reorganização do modal
+
+O detalhe do calendário agora ocupa uma janela mais ampla e é dividido em três abas:
+
+- **Calendário de postagens:** grade mensal de sete colunas (segunda a domingo); dias livres em cinza, dias programados em rosa, com legenda e quantidade de publicações.
+- **Produção e aprovação:** anexos, andamento da copy, artes e esteira de aprovação da liderança.
+- **Informações e histórico:** responsáveis, prazos detalhados, tarefas ligadas, observações e movimentações registradas.
+
+Ao **arrastar** uma postagem rosa e **soltá-la sobre um dia cinza**, o sistema altera a data, mantém tema, legenda e arte vinculada, registra a realocação e reabre a validação interna final caso já estivesse aprovada. Dias já ocupados não aceitam o drop, evitando sobrescrever outra postagem.
+
+**Duplo clique** em uma publicação abre o formulário de edição; duplo clique em um dia livre abre uma nova postagem já com aquela data preenchida. Em dispositivos touch, toque em uma publicação e depois em um dia livre para realocá-la. Pelo teclado, Enter/Espaço seleciona a postagem e depois o dia de destino; Esc cancela a seleção.
+
 ## 2. Validação externa do cliente
 
 A validação **do cliente** é independente da esteira **interna** de Aprovações da equipe.
@@ -62,6 +74,12 @@ pnpm dev
 - [ ] Geração em lote avisa quando o cliente não possui dias configurados.
 - [ ] Para uma semana de SEG/QUA/SEX, aparecem todas as ocorrências no mês (inclusive anos bissextos).
 - [ ] Calendário individual segue os mesmos dias e não duplica calendários existentes.
+- [ ] A grade começa na segunda-feira, exibe todos os dias do mês e destaca em rosa somente dias com postagens.
+- [ ] Arrastar uma postagem rosa para um dia cinza salva a nova data e mantém a arte vinculada.
+- [ ] Soltar em dia já ocupado não substitui nem apaga outra postagem.
+- [ ] Duplo clique na publicação abre a edição; duplo clique no dia vazio abre nova postagem na data certa.
+- [ ] Toque + toque e teclado permitem realocação sem arrastar.
+- [ ] O modal possui abas para Programação, Produção/Aprovação e Histórico sem perder as ações originais.
 - [ ] Alterar dia de uma postagem mantém as outras no lugar e preserva a arte da biblioteca vinculada.
 - [ ] Criar uma publicação especial não modifica a frequência do cliente.
 - [ ] Histórico registra a movimentação e temas/copies persistem após atualizar a página.
