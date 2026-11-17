@@ -76,10 +76,12 @@ export class AdminController {
     if (body.memberId !== undefined && body.memberId)
       await this.assertMemberAvailable(id, String(body.memberId));
     await this.prisma.user.update({ where: { id }, data });
-    // Keep the visible team record in sync when editing the linked account.
-    if (body.memberId === undefined && target.memberId && (data.email !== undefined || data.name !== undefined)) {
+    if (body.memberId !== undefined) await this.linkMember(id, String(body.memberId || ''), actor.id);
+    // Keep the linked team card consistent with edits to name/email.
+    const linkedId = body.memberId !== undefined ? String(body.memberId || '') : target.memberId;
+    if (linkedId && (data.email !== undefined || data.name !== undefined)) {
       const profile = await this.prisma.document.findUnique({
-        where: { collection_id: { collection: 'members', id: target.memberId } },
+        where: { collection_id: { collection: 'members', id: linkedId } },
       });
       const value = profile?.data as Record<string, unknown> | undefined;
       if (profile && value?.accountId === id) {
@@ -87,11 +89,10 @@ export class AdminController {
           ...(data.email !== undefined ? { email: data.email } : {}),
           ...(data.name !== undefined ? { name: data.name } : {}),
         };
-        await this.saveMember(target.memberId, updated, actor.id);
+        await this.saveMember(linkedId, updated, actor.id);
       }
     }
     if (body.status === 'disabled' || body.resetPassword || body.revokeSessions) { await this.prisma.session.deleteMany({ where: { userId: id } }); this.events.kick(id); }
-    if (body.memberId !== undefined) await this.linkMember(id, body.memberId, actor.id);
     await this.audit(actor.id, 'user_update', id, { fields: Object.keys(body || {}).filter((field) => ['name','email','username','role','status','memberId','resetPassword','revokeSessions'].includes(field)), resetPassword: !!body.resetPassword }); return result;
   }
 
