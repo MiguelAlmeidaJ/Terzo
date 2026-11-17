@@ -43,7 +43,7 @@ function calPostingPanel(c) {
     '<p class="post-info">Dias cadastrados: <b>'+esc(days.join(' · ')||'não definidos')+'</b>. As datas do mês podem ser ajustadas para campanhas e datas comemorativas sem alterar a rotina do cliente.</p>'+
     (rows?'<div class="post-list">'+rows+'</div>':'<p class="post-empty">Nenhuma publicação programada para este calendário.</p>')+
     (can?'<div class="row" style="margin-top:12px"><button class="btn sm primary" data-act="ps-new" data-id="'+esc(c.id)+'">+ Postagem especial</button>'+
-      (!Array.isArray(c.posts)?'<button class="btn sm" data-act="ps-regenerate" data-id="'+esc(c.id)+'">Gerar pelos dias cadastrados</button>':'')+
+      '<button class="btn sm" data-act="ps-regenerate" data-id="'+esc(c.id)+'">'+(Array.isArray(c.posts)?'Recriar pelos dias cadastrados':'Gerar pelos dias cadastrados')+'</button>'+
       '</div>':'')+'</div>';
 }
 function calPostForm(c,existing) {
