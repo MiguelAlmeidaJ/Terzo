@@ -129,7 +129,7 @@ function accUsersBody(){
      (self?'': '<button class="btn sm" data-act="team-reset" data-mid="'+esc(m.id)+'" data-uid="'+esc(u.id)+'">Nova senha</button>'+
        '<button class="btn sm ghost" data-act="team-revoke" data-mid="'+esc(m.id)+'" data-uid="'+esc(u.id)+'">Revogar sessões</button>'+
        '<button class="btn sm" data-act="team-'+(u.status==='active'?'off':'on')+'" data-mid="'+esc(m.id)+'" data-uid="'+esc(u.id)+'">'+(u.status==='active'?'Desativar':'Reativar')+'</button>'+
-       '<button class="btn sm ghost" data-act="team-unlink" data-mid="'+esc(m.id)+'" data-uid="'+esc(u.id)+'">Desvincular</button>')):
+       '<button class="btn sm ghost" data-act="team-unlink" data-mid="'+esc(m.id)+'" data-uid="'+esc(u.id)+'">Desvincular</button>'):
      !m.accountId&&!m.disabled?'<button class="btn sm primary" data-act="team-provision-one" data-mid="'+esc(m.id)+'">Criar acesso</button>':'')+
      (!m.disabled&&!self?'<button class="btn sm ghost" data-act="acc-va" data-id="'+esc(m.id)+'">Visualizar como</button>':'')+
     '</span></td></tr>';
