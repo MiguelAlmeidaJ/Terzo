@@ -18,4 +18,8 @@ assert.ok(html.includes("Dias de postagem por semana"), 'Dias de postagem ausent
 assert.ok(html.includes('/api/profile-photo/member/'), 'Avatares devem ser lidos exclusivamente do banco');
 assert.ok(html.includes("fetch('/api/profile-photo'"), 'Upload de perfil deve usar a API de fotos do PostgreSQL');
 assert.ok(!html.includes("assets.upload(blob,{type:'image/jpeg'})"), 'Fotos de perfil não podem ser enviadas aos anexos/Nextcloud');
+assert.ok(html.includes('Criar acessos pendentes'), 'A criação em lote deve aparecer na aba Gerenciamento de usuários');
+assert.ok(html.includes('/api/team/members-with-account'), 'Novo integrante deve gerar login vinculado automaticamente');
+assert.ok(html.includes('/api/team/provision-accounts'), 'Provisionamento de integrantes existentes deve estar disponível');
+assert.ok(html.includes('team-edit'), 'Contas existentes precisam poder ser editadas diretamente na Equipe');
 console.log('Scripts do CRM original e módulos editoriais: sintaxe compilada com sucesso.');
