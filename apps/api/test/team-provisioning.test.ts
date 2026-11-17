@@ -65,7 +65,7 @@ test('new member receives atomic linked account and a one-time temporary passwor
   assert.equal(user.role,'member');
   assert.equal(verifyPassword(created.tempPassword,user.passHash),true);
   assert.equal(env.audits.length,1);
-  assert.ok(!JSON.stringify(env.audits).includes(created.tempPassword),'audit log must not expose password');
+  assert.ok(!JSON.stringify(env.audits, (_key, value) => typeof value === 'bigint' ? String(value) : value).includes(created.tempPassword),'audit log must not expose password');
   assert.equal(env.broadcasts.length,1);
 });
 
