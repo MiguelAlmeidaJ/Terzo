@@ -22,6 +22,7 @@ model User {
   lastLogin      BigInt?   @map("last_login")
   memberId       String    @default("") @map("member_id")
   sessions       Session[]
+  profilePhoto   UserProfilePhoto?
 
   @@map("users")
 }
@@ -132,4 +133,16 @@ model ClientApproval {
   @@index([kind, targetId, createdAt])
   @@index([clientId, createdAt])
   @@map("client_approvals")
+}
+
+/** Uma foto por conta. Imagem JPEG compactada e armazenada exclusivamente no PostgreSQL. */
+model UserProfilePhoto {
+  userId    String @id @map("user_id")
+  image     Bytes
+  mime      String @default("image/jpeg")
+  size      Int
+  updatedAt BigInt @map("updated_at")
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profile_photos")
 }
