@@ -5,7 +5,8 @@ import path from 'node:path';
 
 const htmlPath = path.resolve('apps/web/public/legacy/index.html');
 assert.ok(existsSync(htmlPath), 'O HTML original precisa ser gerado antes da verificação');
-const html = readFileSync(htmlPath, 'utf8');
+// Python writes CRLF on Windows and LF on Linux; parse the same generated CRM on both systems.
+const html = readFileSync(htmlPath, 'utf8').replace(/\r\n?/g, '\n');
 const inline = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].map(x=>x[1]).filter(x=>x.trim());
 assert.ok(inline.length > 0, 'Nenhum script inline foi encontrado');
 for (let i=0;i<inline.length;i++) new Script(inline[i], { filename: 'legacy-inline-'+i+'.js' });
