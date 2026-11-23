@@ -69,7 +69,7 @@ module.exports = {
       autorestart: true,
       max_memory_restart: '600M',
       time: true,
-      env: { NODE_ENV: 'production', API_INTERNAL_URL: value('API_INTERNAL_URL', `http://0.0.0.0:${apiPort}`) },
+      env: { NODE_ENV: 'production', API_INTERNAL_URL: value('API_INTERNAL_URL', `http://127.0.0.1:${apiPort}`) },
     },
   ],
 };
