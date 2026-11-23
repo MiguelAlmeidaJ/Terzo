@@ -123,7 +123,7 @@ function vMeuDia(){const mm=myMember();
    ${!anyTask&&F!=='abertas'?`<div class="md-empty"><b>Tudo em dia por aqui.</b>Nenhuma tarefa urgente, atrasada ou com prazo para hoje.</div>`:''}
    ${F==='all'&&rest.length?`<details><summary style="cursor:pointer;font-size:13.5px;color:var(--muted);font-weight:600">Próximos dias e com a liderança (${rest.length})</summary><div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">${rest.map(t=>mdTaskRow(t,mm)).join('')}</div></details>`:''}`:'';
  return `<div class="md-head"><div><h1>${hi}, ${esc(mm.name.split(' ')[0])}</h1><p>${WDF[d.getDay()].replace(/^./,x=>x.toUpperCase())}, ${d.getDate()} de ${MN[d.getMonth()]} · ${esc(mm.role||mm.area||'')}</p></div>
-  <div class="row"><button class="btn" data-act="profile" data-id="${mm.id}">${mm.photoId?'Meu perfil':'Adicionar minha foto'}</button></div></div>
+  <div class="row"><button class="btn" data-act="profile" data-id="${mm.id}">Meu perfil e foto</button></div></div>
  <div class="md-search">${svg('search')}<input id="md-q" type="search" placeholder="Pesquisar cliente, empresa ou projeto..." value="${esc(ui.mdQ)}" autocomplete="off" aria-label="Pesquisar cliente, empresa ou projeto">${mdSearch()}</div>
  <div class="md-kpis" role="group" aria-label="Resumo do dia">${K('agenda','compromissos hoje',meets.filter(m=>!mCxl(m)).length)}${K('abertas','tarefas em aberto',mine.length)}${K('urg','urgentes',G.urg.length,'hot')}${K('late','atrasadas',mine.filter(t=>taskState(t)==='late'&&!['cliente','aprovacao'].includes(tkFk(t))).length,'hot')}${K('cli','aguardando cliente',G.cli.length,'warn')}${F!=='all'?'<button class="md-k" data-act="md-f" data-v="all">Limpar filtro ✕</button>':''}</div>
  <div class="md-grid"><div class="md-col">

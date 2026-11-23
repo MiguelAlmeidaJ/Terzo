@@ -15,4 +15,7 @@ assert.ok(html.includes('post-cell.can-drop'), 'A realocação por drag/drop nã
 assert.ok(html.includes('cal-view-tabs'), 'O modal não contém navegação por abas');
 assert.ok(html.includes('caLinkButton('), 'A validação externa não foi inserida na UI');
 assert.ok(html.includes("Dias de postagem por semana"), 'Dias de postagem ausentes no cadastro');
+assert.ok(html.includes('/api/profile-photo/member/'), 'Avatares devem ser lidos exclusivamente do banco');
+assert.ok(html.includes("fetch('/api/profile-photo'"), 'Upload de perfil deve usar a API de fotos do PostgreSQL');
+assert.ok(!html.includes("assets.upload(blob,{type:'image/jpeg'})"), 'Fotos de perfil não podem ser enviadas aos anexos/Nextcloud');
 console.log('Scripts do CRM original e módulos editoriais: sintaxe compilada com sucesso.');
