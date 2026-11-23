@@ -29,7 +29,7 @@ document.addEventListener('click',async e=>{
  }else{
   if(!['Programado','Aprovado'].includes(c.status)){toast('É necessário aprovar a peça antes de publicá-la.');return}
   if(!confirm('Você conferiu que a publicação foi realmente ao ar?'))return;
-  try{await put('creatives',id,{...c,status:'Publicado',publishedAt:new Date().toISOString(),publishedBy:me.id||'',statusAt:new Date().toISOString()});toast('Publicação confirmada.');creativeDetail(id)}
+  try{await put('creatives',id,{...c,confirmPublication:true,status:'Publicado',publishedAt:new Date().toISOString(),publishedBy:me.id||'',statusAt:new Date().toISOString()});toast('Publicação confirmada.');creativeDetail(id)}
   catch(err){toast('Não foi possível confirmar a publicação.')}
  }
 },true);
