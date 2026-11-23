@@ -208,7 +208,7 @@ function taskForm(t,pre){if(!isLeader()){toast('Só a liderança cria e distribu
    const p=rec.projectId&&byId('projects',rec.projectId);if(p&&!rec.clientId)rec.clientId=p.clientId||'';
    if(p&&(isNew||t.projectId!==rec.projectId)){const ts=projTasks(p).filter(x=>x.id!==t.id);rec.seq=ts.length?Math.max(...ts.map(x=>+x.seq||0))+1:0}
    if(!rec.projectId){rec.projectId='';rec.stageId=''}
-   if(!isNew&&(t.assigneeId!==rec.assigneeId||String(t.assigneeIds||[])!==String(rec.assigneeIds)))rec.history=[...(t.history||[]),{s:tkS(t),at:new Date().toISOString(),by:me.id||'',note:'Responsáveis: '+tkPeople(rec).map(first).join(', ')}].slice(-30);
+   if(!isNew&&(t.assigneeId!==rec.assigneeId||String(t.assigneeIds||[])!==String(rec.assigneeIds)))rec.history=[...(v.history||t.history||[]),{s:tkS(t),at:new Date().toISOString(),by:me.id||'',note:'Responsáveis: '+tkPeople(rec).map(first).join(', ')}].slice(-30);
    if(isNew){rec.createdAt=today();rec.openedAt=new Date().toISOString();rec.history=[{s:'Aberto',at:rec.openedAt,by:me.id||'',note:'Criada e atribuída a '+tkPeople(rec).map(first).join(', ')}]}
    const tid=t.id||uid();await put('todos',tid,rec);
    const m=byId('members',rec.assigneeId);const l=m?weekLoad(m.id,0):0;
