@@ -107,7 +107,7 @@ const relStart=c=>c.contractStart||c.closedAt||'';
 function relTenure(s){const d=parseD(s);if(!d)return'';const n=new Date();let m=(n.getFullYear()-d.getFullYear())*12+n.getMonth()-d.getMonth();if(n.getDate()<d.getDate())m--;
  if(m<0)return'começa em '+fD(s);if(m<1){const dd=Math.max(0,daysSince(s));return dd+' dia'+(dd===1?'':'s')}const y=Math.floor(m/12),r=m%12;
  return [y?y+' ano'+(y>1?'s':''):'',r?r+' '+(r>1?'meses':'mês'):''].filter(Boolean).join(' e ')}
-function relSit(c){if(c.stage==='Perdido')return{k:'mute',l:'Encerrada'};if(c.stage!=='Fechado')return{k:'lead',l:'Em negociação · '+c.stage};
+function relSit(c){if(c.inactive)return{k:'mute',l:'Inativa'};if(c.stage==='Perdido')return{k:'mute',l:'Encerrada'};if(c.stage!=='Fechado')return{k:'lead',l:'Em negociação · '+c.stage};
  const h=health(c);return h?{k:h.lv,l:h.lv==='ok'?'Ativa · saudável':h.lv==='warn'?'Ativa · atenção':'Ativa · em risco',h}:{k:'ok',l:'Ativa'}}
 const relSitHtml=(s,cls)=>`<span class="rl-sit ${s.k} ${cls||''}"><i></i>${esc(s.l)}</span>`;
 const relFill=t=>`<span class="rl-fill">${t||'A preencher'}</span>`;
