@@ -49,6 +49,16 @@ test('Publicação: rejeita publicação sem aprovação', async () => {
   const data = { status: 'Publicado', title: 'Arte de exemplo' };
   await assert.rejects(fx.controller.set({ coll: 'creatives', id: 'cr1', data }, {} as any), /publication_must_be_approved/);
 });
+test('Publicação: confirmação explícita registra ator do servidor', async () => {
+  const fx = documentFixture({ status: 'Aprovado' });
+  const data: any = { status: 'Publicado', title: 'Peça aprovada' };
+  await assert.rejects(fx.controller.set({ coll: 'creatives', id: 'cr2', data }, {} as any), /manual_publication_confirmation_required/);
+  data.confirmPublication = true;
+  await fx.controller.set({ coll: 'creatives', id: 'cr2', data }, {} as any);
+  assert.equal(data.confirmPublication, undefined);
+  assert.equal(data.publishedBy, actor.id);
+  assert.ok(!Number.isNaN(Date.parse(data.publishedAt)));
+});
 test('Presença: pausa outro exige motivo e transições criam eventos', async () => {
   const events: any[] = []; let current: any = null;
   const prisma: any = {
