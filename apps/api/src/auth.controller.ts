@@ -5,13 +5,14 @@ import { AuthService } from './auth.service';
 import { PrismaService } from './prisma.service';
 import { config, now } from './config';
 import { EventsService } from './events.service';
+import { PresenceService } from './presence.service';
 
 const dummyHash = hashPassword('terzo-dummy-password');
 const windowMs = 15n * 60n * 1000n;
 
 @Controller('api/auth')
 export class AuthController {
-  constructor(private readonly prisma: PrismaService, private readonly auth: AuthService, private readonly events: EventsService) {}
+  constructor(private readonly prisma: PrismaService, private readonly auth: AuthService, private readonly events: EventsService, private readonly presence?: PresenceService) {}
 
   @Post('login')
   @HttpCode(200)
@@ -38,6 +39,7 @@ export class AuthController {
     await this.prisma.loginAttempt.deleteMany({ where: { key: `u:${username}` } });
     const updated = await this.prisma.user.update({ where: { id: user.id }, data: { lastLogin: now() } });
     await this.auth.createSession(res, updated, req);
+    await this.presence?.set(user.id, 'online').catch(() => undefined);
     await this.audit(user.id, 'login');
     return { ok: true, mustChange: updated.mustChange };
   }
@@ -48,6 +50,10 @@ export class AuthController {
     const current = await this.auth.optional(req);
     if (current) {
       await this.prisma.session.delete({ where: { idHash: current.hash } }).catch(() => undefined);
+      if (this.presence) {
+        const remaining = await this.prisma.session.count({ where: { userId: current.user.id } });
+        if (!remaining) await this.presence.set(current.user.id, 'ended').catch(() => undefined);
+      }
       await this.audit(current.user.id, 'logout');
     }
     res.setHeader('Set-Cookie', sessionCookie('', config.cookieSecure, 0));
