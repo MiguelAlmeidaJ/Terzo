@@ -96,17 +96,13 @@ export class StorageService {
   }
 
   async openBrand(): Promise<StoredObject | null> {
-    let remoteError: unknown;
-    if (this.isNextcloudEnabled()) {
-      try {
-        const remote = await this.getRemote(this.remotePath(config.nextcloud.systemFolder, 'terzo-logo.png'));
-        if (remote) return remote;
-      } catch (error) { remoteError = error; }
-    }
+    // The bundled logo must never wait for Nextcloud on initial page load.
     const local = await this.openLocal(path.join(__dirname, '..', 'assets', 'brand.png'));
     if (local) return local;
-    if (remoteError) throw remoteError;
-    return null;
+
+    // Only use remote storage when the bundled asset is absent.
+    if (!this.isNextcloudEnabled()) return null;
+    return this.getRemote(this.remotePath(config.nextcloud.systemFolder, 'terzo-logo.png'));
   }
 
   async deleteAsset(id: string, storedPath?: string | null) {
