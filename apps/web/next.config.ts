@@ -13,8 +13,9 @@ if (fs.existsSync(rootEnvPath)) {
     rootEnv[match[1]] = match[2].trim().replace(/^(['"])(.*)\1$/, '$2');
   }
 }
-const api = process.env.API_INTERNAL_URL || rootEnv.API_INTERNAL_URL ||
-  `http://127.0.0.1:${process.env.API_PORT || rootEnv.API_PORT || '4003'}`;
+const api = process.env.API_INTERNAL_URL ||
+  (process.env.NODE_ENV === 'development' ? 'http://127.0.0.1:3001' :
+    rootEnv.API_INTERNAL_URL || `http://127.0.0.1:${process.env.API_PORT || rootEnv.API_PORT || '4003'}`);
 
 const nextConfig: NextConfig = {
   async headers() {
