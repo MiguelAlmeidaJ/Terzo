@@ -1,6 +1,7 @@
 /** Carga manual e idempotente da carteira de 23/11. Padrão: APENAS relatório. */
 import fs from 'node:fs';
 import path from 'node:path';
+import { randomUUID } from 'node:crypto';
 const root=path.resolve(import.meta.dirname,'..');
 for(const line of fs.readFileSync(path.join(root,'.env'),'utf8').split(/\r?\n/)){
  const m=line.trim().match(/^([A-Z_][A-Z0-9_]*)\s*=\s*(.*)$/);if(!m)continue;
@@ -28,7 +29,7 @@ try{
   const d=one(members,designerName);const e=editorName?one(members,editorName):null;
   if(!d||d.data.disabled){console.log('DESIGNER NÃO LOCALIZADO/INATIVO:',clientName,designerName);skipped++;continue}
   if(editorName&&(!e||e.data.disabled))console.log('EDITOR NÃO LOCALIZADO/INATIVO (mantido indefinido):',clientName,editorName);
-  if(!c){const id='cl_'+crypto.randomUUID().replace(/-/g,'').slice(0,18);c={id,data:{name:clientName,stage:'Fechado',createdAt:stamp.slice(0,10)}};clients.push(c);console.log('NOVO CLIENTE SEM DETALHES CONTRATUAIS:',clientName)}
+  if(!c){const id='cl_'+randomUUID().replace(/-/g,'').slice(0,18);c={id,data:{name:clientName,stage:'Fechado',createdAt:stamp.slice(0,10)}};clients.push(c);console.log('NOVO CLIENTE SEM DETALHES CONTRATUAIS:',clientName)}
   const next={...c.data};
   const assignments=[['designerId',d.id],['videoEditorId',editorName?(e?.id||''):'']];
   let changed=false;
