@@ -37,4 +37,10 @@ assert.ok(html.includes('teamActionIcons(m,u,self)'), 'Ações de contas devem s
 assert.ok(html.includes('aria-label="'+""+'') || html.includes('aria-label='), 'Ícones precisam possuir descrições para leitores de tela');
 assert.ok(html.includes('teamApplyFilter()'), 'A gestão de usuários precisa oferecer busca e filtros de status');
 assert.ok(html.includes('team-users-panel'), 'O novo layout da tabela de usuários deve estar presente');
+assert.ok(html.includes("headers['X-Terzo']='1'"), 'Mudanças de presença precisam enviar o cabeçalho CSRF exigido pela API');
+assert.ok(html.includes('presence23-other-form'), 'Outro motivo deve usar formulário na interface');
+assert.ok(!html.includes("prompt('Qual o motivo desta pausa?')"), 'Presença não deve usar prompt nativo do navegador');
+assert.ok(html.includes('CLIENTE E RESPONSÁVEIS'), 'Janela de tarefa precisa iniciar com cliente e carteira');
+assert.ok(html.includes('PRIORIDADE E PRAZO'), 'Janela de tarefa precisa incluir bloco de prazo');
+assert.ok(html.includes('INFORMAÇÕES DA TAREFA'), 'Janela de tarefa precisa incluir bloco de informações');
 console.log('Scripts do CRM original e módulos editoriais: sintaxe compilada com sucesso.');
