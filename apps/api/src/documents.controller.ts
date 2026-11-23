@@ -28,6 +28,7 @@ export class DocumentsController {
     if (JSON.stringify(body.data).length > 1024 * 1024) throw new BadRequestException('too_large');
     await this.validateSensitiveWrite(user, body.coll, body.id, body.data);
     await this.validatePortfolioWrite(user, body.coll, body.id, body.data);
+    await this.validateTaskAndPublishing(user, body.coll, body.id, body.data);
     await this.validateNewAssetReferences(user, body.coll, body.id, body.data);
     await this.prisma.document.upsert({
       where: { collection_id: { collection: body.coll, id: body.id } },
@@ -86,6 +87,75 @@ export class DocumentsController {
       ...changed.map((key) => ({ role: key === 'designerId' ? 'designer' : 'video_editor',
         fromId: String(before[key] || ''), toId: String(data[key] || ''),
         changedBy: user.id, changedAt: stamp }))].slice(-200);
+  }
+
+  private async validateTaskAndPublishing(user: any, collection: string, id: string, data: Record<string, any>) {
+    if (collection !== 'todos' && collection !== 'creatives') return;
+    const beforeRow = await this.prisma.document.findUnique({ where: { collection_id: { collection, id } } });
+    const before = beforeRow?.data as Record<string, any> | undefined;
+    const nowServer = new Date().toISOString();
+    if (collection === 'todos') {
+      // O formulário atual é opt-in: tarefas antigas sem execFor continuam editáveis.
+      if (data.execFor !== undefined) {
+        if (!['designer', 'editor', 'editor2', 'outro'].includes(data.execFor)) throw new BadRequestException('invalid_task_route');
+        const mapped: Record<string, string> = {
+          designer: String(data.designerId || ''), editor: String(data.videoEditorId || ''),
+          editor2: String(data.editor2Id || ''), outro: String(data.assigneeId || ''),
+        };
+        if (!data.assigneeId || mapped[data.execFor] !== data.assigneeId) throw new BadRequestException('invalid_task_assignee');
+        if (!data.title || typeof data.title !== 'string' || data.title.length > 500) throw new BadRequestException('invalid_task_title');
+        if (data.editor2Id && data.editor2Id === data.videoEditorId) throw new BadRequestException('duplicate_video_editor');
+        if (data.urgent && !/^\\d{4}-\\d{2}-\\d{2}$/.test(data.due || '')) throw new BadRequestException('urgent_requires_due');
+        const ids = [data.assigneeId, data.designerId, data.videoEditorId, data.editor2Id, ...(Array.isArray(data.assigneeIds) ? data.assigneeIds : [])].filter(Boolean);
+        const members = await this.prisma.document.findMany({ where: { collection: 'members', id: { in: ids } } });
+        const active = new Map(members.map((row) => [row.id, row.data as Record<string, any>]));
+        if (!active.has(data.assigneeId) || active.get(data.assigneeId)?.disabled) throw new BadRequestException('assignee_not_active');
+        if (ids.some((memberId: string) => !active.has(memberId) || active.get(memberId)?.disabled)) throw new BadRequestException('invalid_task_member');
+        for (const editorId of [data.videoEditorId, data.editor2Id].filter(Boolean)) {
+          const member = active.get(editorId)!;
+          if (!String(member.area || '').toLowerCase().includes('audiovisual') &&
+              !/otávio|leonardo|bruno/i.test(String(member.name || '')))
+            throw new BadRequestException('video_editor_not_eligible');
+        }
+        if (Array.isArray(data.assigneeIds)) data.assigneeIds = [...new Set(data.assigneeIds.filter((v: unknown) => v !== data.assigneeId))];
+      }
+      if (!beforeRow) {
+        data.createdBy = user.id;
+        data.openedAt = nowServer;
+        data.history = [{ s: 'Aberto', at: nowServer, by: user.id, note: 'Tarefa criada' }];
+      } else if (data.assigneeId !== before?.assigneeId || data.due !== before?.due) {
+        data.history = [...(Array.isArray(before?.history) ? before!.history : []), {
+          s: before?.status || 'Aberto', at: nowServer, by: user.id,
+          note: 'Executor ' + String(before?.assigneeId || '—') + ' → ' + String(data.assigneeId || '—') +
+                '; prazo ' + String(before?.due || '—') + ' → ' + String(data.due || '—'),
+        }].slice(-60);
+      }
+      if (beforeRow) data.createdBy = before?.createdBy || user.id;
+    } else {
+      const from = String(before?.status || '');
+      const to = String(data.status || '');
+      const changed = to !== from;
+      const tracked = ['scheduledFor', 'scheduledBy', 'publishedAt', 'publishedBy'];
+      if (!changed && beforeRow && tracked.some((key) => JSON.stringify(data[key] || '') !== JSON.stringify(before?.[key] || '')))
+        throw new ForbiddenException('publication_fields_are_server_managed');
+      if (!changed || !['Programado', 'Publicado'].includes(to)) return;
+      const member = user.memberId
+        ? await this.prisma.document.findUnique({ where: { collection_id: { collection: 'members', id: user.memberId } } })
+        : null;
+      const area = String((member?.data as any)?.area || '');
+      if (this.access.level(user) < 3 && area !== 'Relacionamento') throw new ForbiddenException('only_attendance_can_publish');
+      if (to === 'Programado') {
+        if (from !== 'Aprovado' || !data.scheduledFor || !Number.isFinite(Date.parse(String(data.scheduledFor))))
+          throw new BadRequestException('publication_must_be_approved_and_scheduled');
+        data.scheduledBy = user.id;
+        data.scheduledFor = new Date(data.scheduledFor).toISOString();
+      } else {
+        if (!['Aprovado', 'Programado'].includes(from)) throw new BadRequestException('publication_must_be_approved');
+        data.publishedAt = nowServer;
+        data.publishedBy = user.id;
+      }
+      data.statusAt = nowServer;
+    }
   }
 
   private assetReferences(value: unknown, depth = 0): Set<string> {
