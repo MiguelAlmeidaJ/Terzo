@@ -163,6 +163,8 @@ export class DocumentsController {
         data.scheduledFor = new Date(data.scheduledFor).toISOString();
       } else {
         if (!['Aprovado', 'Programado'].includes(from)) throw new BadRequestException('publication_must_be_approved');
+        if (data.confirmPublication !== true) throw new BadRequestException('manual_publication_confirmation_required');
+        delete data.confirmPublication;
         data.publishedAt = nowServer;
         data.publishedBy = user.id;
       }
