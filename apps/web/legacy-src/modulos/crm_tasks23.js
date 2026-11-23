@@ -32,21 +32,9 @@ function task23Sync(mode){
  }
  const owner=document.getElementById('f_saveEditorOwner');if(owner)owner.closest('.fld').hidden=!(isAdmin()&&client&&editor.value!==(client.videoEditorId||''));
 }
-function team23AllPeople(existing){return S.members.filter(m=>!m.disabled).sort((a,b)=>a.name.localeCompare(b.name,'pt')).map(m=>({v:m.id,l:m.name+' · '+(m.area||'Equipe')}))}
-// Substitui chips de participantes por uma lista pesquisável com seleção múltipla.
-const task23OldField=fld,task23OldRead=readForm;
-fld=function(field,value){
- if(field.t!=='multipeople')return task23OldField(field,value);
- return '<fieldset class="fld full task23-people"><legend>'+esc(field.l)+'</legend><input type="search" aria-label="Buscar integrantes" placeholder="Buscar integrante..." data-task23-search><div id="f_'+esc(field.k)+'" role="group" aria-label="Participantes">'+field.o.map(opt=>'<label><input type="checkbox" value="'+esc(opt.v)+'" '+((value||[]).includes(opt.v)?'checked':'')+'> '+esc(opt.l)+'</label>').join('')+'</div></fieldset>';
-};
-readForm=function(fields){
- const result=task23OldRead(fields.filter(field=>field.t!=='multipeople'));
- for(const field of fields.filter(field=>field.t==='multipeople'))result[field.k]=[...document.querySelectorAll('#f_'+field.k+' input[type="checkbox"]:checked')].map(el=>el.value);
- return result;
-};
 formModal=function(cfg){
  if(!cfg.fields?.some(f=>f.k==='svcCat')||!cfg.fields.some(f=>f.k==='assigneeIds'))return task23BaseFormModal(cfg);
- const orig=cfg.onSave,values=cfg.values||{},fields=cfg.fields.filter(f=>!['requester','nivel'].includes(f.k)).map(f=>f.k==='assigneeId'?{...f,l:'Outro profissional',req:false}:f.k==='assigneeIds'?{...f,t:'multipeople',o:team23AllPeople(f.o)}:f);
+ const orig=cfg.onSave,values=cfg.values||{},fields=cfg.fields.filter(f=>!['requester','nivel','assigneeIds'].includes(f.k)).map(f=>f.k==='assigneeId'?{...f,l:'Outro profissional',req:false}:f);
  const ci=fields.findIndex(f=>f.k==='clientId');
  const cl=byId('clients',values.clientId);
  fields.splice(ci+1,0,
@@ -58,7 +46,7 @@ formModal=function(cfg){
  const as=fields.findIndex(f=>f.k==='assigneeId');fields.splice(as,1);fields.splice(ci+5,0,{k:'assigneeId',l:'Outro profissional',t:'select',o:memberCapOpts(),empty:'Escolha o profissional'});
  if(isAdmin())fields.push({k:'saveEditorOwner',l:'Carteira do cliente',t:'chips',o:[{v:'sim',l:'Salvar como editor principal deste cliente'}],full:1,hint:'Desmarcado por padrão. Só altera a carteira com sua autorização.'});
  // Ordem do protótipo: cliente e carteira primeiro, depois execução, prazo e informações.
- const sectionOrder=['clientId','designerId','videoEditorId','editor2Id','execFor','assigneeId','categoria','prioridade','urg','due','dueTime','svcCat','svcTitle','title','desc','assigneeIds'];
+ const sectionOrder=['clientId','designerId','videoEditorId','editor2Id','execFor','assigneeId','categoria','prioridade','urg','due','dueTime','svcCat','svcTitle','title','desc'];
  fields.sort((a,b)=>{
   const ia=sectionOrder.indexOf(a.k),ib=sectionOrder.indexOf(b.k);
   return (ia<0?sectionOrder.length:ia)-(ib<0?sectionOrder.length:ib);
@@ -68,6 +56,8 @@ formModal=function(cfg){
  const urg=fields.find(f=>f.k==='urg');if(urg)urg.l='Urgente?';
  const initial={...values,designerId:values.designerId||task23DesignerId(cl),videoEditorId:values.videoEditorId||cl?.videoEditorId||'',editor2Id:values.editor2Id||'',execFor:values.execFor||'',saveEditorOwner:[]};
  cfg={...cfg,fields,values:initial,onSave:async v=>{
+  // Preserve existing co-assignees on edited historical tasks without showing the field.
+  v.assigneeIds=Array.isArray(values.assigneeIds)?values.assigneeIds.slice():[];
   const map={designer:v.designerId,editor:v.videoEditorId,editor2:v.editor2Id,outro:v.assigneeId};
   v.assigneeId=map[v.execFor]||'';
   if(!v.assigneeId||!byId('members',v.assigneeId)||byId('members',v.assigneeId).disabled){toast('Escolha um executor ativo.');throw new Error('executor')}
