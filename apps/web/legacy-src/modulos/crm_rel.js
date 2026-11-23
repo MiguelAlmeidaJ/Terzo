@@ -177,6 +177,7 @@ function stClient(c){const adm=relCanEdit();const month=thisMonth();const o=relO
      <span>${I('pin')}${c.address?esc(c.address)+(/\d/.test(c.address)?'':' '+fill('· rua e número a preencher')):fill('endereço a preencher')}</span></div></div></div>
   <div class="rc-facts">
    <div><span>Designer responsável</span><b>${d?av(d)+esc(mName(d)):fill('a definir')}</b><small>${d?(c.designerSince?'desde '+fD(c.designerSince)+'/'+c.designerSince.slice(0,4):fromNote?'conforme o cadastro do calendário':''):''}${adm?` <button class="lnk" data-act="rl-designer" data-id="${c.id}">${d?'Alterar':'Definir'}</button>`:''}</small></div>
+   <div><span>Editor de vídeo principal</span><b>${c.videoEditorId?av(c.videoEditorId)+esc(mName(c.videoEditorId)):'A definir'}</b>${adm?`<small><button class="lnk" data-act="rl-video-owner" data-id="${c.id}">${c.videoEditorId?'Alterar':'Definir'}</button></small>`:''}</div>
    <div><span>Cliente desde</span><b>${st?fD(st)+'/'+st.slice(0,4):fill()}</b>${!st&&adm?`<small><button class="lnk" data-act="rl-agree" data-id="${c.id}">Informar início</button></small>`:''}</div>
    <div><span>Tempo de casa</span><b>${st?esc(relTenure(st)):'—'}</b></div>
    <div><span>Situação</span><b>${relSitHtml(s)}</b>${s.h&&s.h.why.length?`<small>${esc(s.h.why[0])}</small>`:''}</div>
@@ -355,3 +356,17 @@ try{document.documentElement.setAttribute('data-theme','light')}catch(e){}
 @media (max-width:1000px){.rc-facts{grid-template-columns:repeat(3,minmax(0,1fr));row-gap:16px}.rc-facts>div:nth-child(4){border-left:0;padding-left:0}}
 @media (max-width:700px){.rc-id{flex-direction:column;gap:12px}.rc-logo{width:76px;height:76px}.rc-logo .clogo{width:66px!important;height:66px!important}.rc-facts{grid-template-columns:repeat(2,minmax(0,1fr))}.rc-facts>div{border-left:0;padding:0}.rc-compose{grid-template-columns:1fr}.rc-ev{grid-template-columns:1fr;gap:6px}.rc-ev time{display:flex;gap:8px;align-items:baseline}}
 `;(document.body||document.head).appendChild(st)})();
+
+
+// Editor principal vive no próprio documento clients; a API registra o histórico com hora do servidor.
+function relVideoOwnerForm(id){
+ const c=byId('clients',id);if(!c||!isAdmin())return;
+ const eligible=S.members.filter(m=>!m.disabled&&(String(m.area||'').toLowerCase().includes('audiovisual')||/otávio|leonardo|bruno/i.test(m.name||''))).sort((a,b)=>a.name.localeCompare(b.name,'pt'));
+ formModal({title:'Editor de vídeo principal · '+c.name,values:{videoEditorId:c.videoEditorId||''},fields:[{k:'videoEditorId',l:'Editor de vídeo principal',t:'select',o:eligible.map(m=>({v:m.id,l:m.name})),empty:'Não definido',full:1}],onSave:async v=>{
+ const current=byId('clients',id);if(!current)return;
+ if(v.videoEditorId&&(!byId('members',v.videoEditorId)||byId('members',v.videoEditorId).disabled)){toast('Editor indisponível');throw new Error('editor')}
+ await put('clients',id,{...current,videoEditorId:v.videoEditorId});
+ toast('Editor principal atualizado');
+ }});
+}
+document.addEventListener('click',e=>{const btn=e.target.closest('[data-act="rl-video-owner"]');if(!btn)return;e.preventDefault();e.stopPropagation();relVideoOwnerForm(btn.dataset.id)},true);
