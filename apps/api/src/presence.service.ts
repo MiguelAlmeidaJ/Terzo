@@ -45,13 +45,28 @@ export class PresenceService {
  }
  private summarize(events:{status:string;at:Date}[],current:{status:string;since:Date}|null,lunchLimit:number,until=Date.now()){
   let worked=0,lunch=0,other=0;
-  const line=events.map((ev,i)=>{const from=ev.at.getTime(),to=Math.min(until,events[i+1]?.at.getTime()||until),span=mins(from,to);
-   if(working.has(ev.status))worked+=span;else if(ev.status==='lunch')lunch+=span;else if(ev.status==='other')other+=span;
-   return {status:ev.status,from:ev.at.toISOString(),to:new Date(Math.max(from,to)).toISOString(),minutes:Math.round(span)};
+  const byDay=new Map<string,number>();
+  const line=events.map((ev,i)=>{
+   const from=ev.at.getTime(),to=Math.max(from,Math.min(until,events[i+1]?.at.getTime()||until));
+   let cursor=from;
+   while(cursor<to){
+    const key=day(new Date(cursor));
+    // São Paulo usa UTC−03:00 em 2026; separar blocos por dia evita descontar
+    // apenas um almoço inteiro para todos os dias agregados do painel.
+    const dayStart=Date.parse(key+'T00:00:00-03:00');
+    const pieceEnd=Math.min(to,dayStart+86400000);
+    if(pieceEnd<=cursor)break;
+    const span=mins(cursor,pieceEnd);
+    if(working.has(ev.status))worked+=span;
+    else if(ev.status==='lunch'){lunch+=span;byDay.set(key,(byDay.get(key)||0)+span)}
+    else if(ev.status==='other')other+=span;
+    cursor=pieceEnd;
+   }
+   return {status:ev.status,from:ev.at.toISOString(),to:new Date(to).toISOString(),minutes:Math.round(mins(from,to))};
   });
+  const negative=[...byDay.values()].reduce((acc,n)=>acc+Math.max(0,n-lunchLimit),0);
   return {workedMinutes:Math.round(worked),lunchMinutes:Math.round(lunch),
-   lunchOverMinutes:Math.max(0,Math.round(lunch-lunchLimit)),
-   otherMinutes:Math.round(other),line};
+   lunchOverMinutes:Math.round(negative),otherMinutes:Math.round(other),line};
  }
  async team(user:User,days:number){
   if(!await this.mayManage(user))throw new ForbiddenException('management_only');
