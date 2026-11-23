@@ -2985,10 +2985,21 @@ function vMeuDia(){const mm=myMember();
 function memberForm(x,pre){const isNew=!x;x=x||{area:'Estratégia',...(pre||{})};
  formModal({title:pre?'Cadastrar meu acesso':isNew?'Cadastrar integrante':'Editar integrante',values:{...x,adm:x.admin?'sim':'nao',rk:x.hideRank?'nao':'sim',capacity:x.capacity||15},fields:[
   ...(isAdmin()?[{k:'adm',l:'Perfil de acesso',t:'select',o:[{v:'nao',l:'Equipe: abre no Meu dia'},{v:'sim',l:'Administrador: visão completa e gestão da equipe'}],full:1},{k:'rk',l:'Ranking de entregas',t:'select',o:[{v:'sim',l:'Aparece no ranking'},{v:'nao',l:'Não aparece no ranking'}]},{k:'capacity',l:'Capacidade semanal (pontos)',t:'number',hint:'Soma dos níveis que a pessoa entrega por semana. Padrão: 15.'}]:[]),
-  {k:'name',l:'Nome',req:1},{k:'area',l:'Área',t:'select',o:AREAS},{k:'role',l:'Função',full:1,ph:'Ex.: Estrategista de conteúdo'},
-  {k:'email',l:'E-mail',t:'email',full:1,hint:'O e-mail corporativo da pessoa. Use o mesmo para compartilhar o CRM com ela.'}],
+  {k:'name',l:'Nome',req:1,hint:isNew&&isAdmin()&&!pre?'O sistema criará automaticamente o login nome.sobrenome e o e-mail @terceiroandar.com.br.':''},{k:'area',l:'Área',t:'select',o:AREAS},{k:'role',l:'Função',full:1,ph:'Ex.: Estrategista de conteúdo'},
+  {k:'email',l:'E-mail',t:'email',full:1,hint:isNew&&isAdmin()&&!pre?'Gerado automaticamente com o domínio terceiroandar.com.br.':'Dados profissionais. Para editar o login, use Gerenciamento de usuários.'}],
   onSave:async v=>{const rec={...x,...v};if('adm' in v)rec.admin=v.adm==='sim';delete rec.adm;if('rk' in v)rec.hideRank=v.rk==='nao';delete rec.rk;if('capacity' in v)rec.capacity=+v.capacity||15;if(isNew){rec.createdAt=today();rec.color=COLORS[S.members.length%COLORS.length]}
-   if(pre&&me.id){rec.accountId=me.id;mineApplied=false;hadView=false}await put('members',x.id||uid(),rec);toast(isNew?'Integrante cadastrado':'Integrante atualizado')},
+   if(isNew&&isAdmin()&&!pre){
+     if(teamAccountState.busy){toast('Uma criação de conta já está em andamento.');throw Error('busy')}
+     teamAccountState.busy=true;
+     let created;
+     try{created=await teamApi('/api/team/members-with-account','POST',{name:rec.name,area:rec.area,role:rec.role,capacity:rec.capacity,hideRank:rec.hideRank,admin:rec.admin,leader:rec.leader})}
+     finally{teamAccountState.busy=false}
+     toast('Integrante e acesso criados com sucesso.');
+     setTimeout(()=>teamShowCredentials([created],[]),90);
+     return;
+   }
+   if(pre&&me.id){rec.accountId=me.id;mineApplied=false;hadView=false}
+   await put('members',x.id||uid(),rec);toast(isNew?'Integrante cadastrado':'Integrante atualizado')},
   onDelete:isNew?null:async()=>{await del('members',x.id);toast(x.name+' foi removido(a) da equipe')},delLabel:'Remover da equipe'})}
 function removeMember(id){const x=byId('members',id);if(!x)return;const s=memberStats(id);
  openModal(`<div class="mh"><h2>Remover ${esc(x.name)}?</h2><button class="x" data-act="close" aria-label="Fechar">×</button></div>

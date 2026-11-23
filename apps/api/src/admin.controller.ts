@@ -52,8 +52,23 @@ export class AdminController {
     if (target.role !== 'member' && actor.role !== 'owner') throw new ForbiddenException('Só o dono altera administradores do servidor.');
     if (target.id === actor.id && (body.status || body.role)) throw new BadRequestException('Você não pode alterar o próprio status ou papel.');
     const data: Prisma.UserUpdateInput = {}; const result: any = { ok: true };
+    if (body.username != null) {
+      const username = String(body.username).trim().toLowerCase();
+      if (!/^[a-z0-9._-]{3,40}$/.test(username))
+        throw new BadRequestException('Usuário: entre 3 e 40 caracteres, usando letras, números, ponto, hífen ou sublinhado.');
+      if (username !== target.username) {
+        const used = await this.prisma.user.findUnique({ where: { username }, select: { id: true } });
+        if (used && used.id !== id) throw new ConflictException('Este nome de usuário já está em uso.');
+        data.username = username;
+      }
+    }
     if (body.name != null) data.name = String(body.name).trim().slice(0, 120) || target.name;
-    if (body.email != null) data.email = String(body.email).trim().slice(0, 200);
+    if (body.email != null) {
+      const email = String(body.email).trim().toLowerCase();
+      if (email.length > 200 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+        throw new BadRequestException('Informe um e-mail válido.');
+      data.email = email;
+    }
     if (body.role && ['owner', 'editor', 'member'].includes(body.role)) { if (actor.role !== 'owner') throw new ForbiddenException('Só o dono altera papéis.'); data.role = body.role; }
     if (body.status && ['active', 'disabled'].includes(body.status)) { data.status = body.status; data.sessionVersion = { increment: 1 }; }
     if (body.resetPassword) { const password = temporaryPassword(); data.passHash = hashPassword(password); data.mustChange = true; data.sessionVersion = { increment: 1 }; result.tempPassword = password; }
@@ -61,9 +76,24 @@ export class AdminController {
     if (body.memberId !== undefined && body.memberId)
       await this.assertMemberAvailable(id, String(body.memberId));
     await this.prisma.user.update({ where: { id }, data });
+    if (body.memberId !== undefined) await this.linkMember(id, String(body.memberId || ''), actor.id);
+    // Keep the linked team card consistent with edits to name/email.
+    const linkedId = body.memberId !== undefined ? String(body.memberId || '') : target.memberId;
+    if (linkedId && (data.email !== undefined || data.name !== undefined)) {
+      const profile = await this.prisma.document.findUnique({
+        where: { collection_id: { collection: 'members', id: linkedId } },
+      });
+      const value = profile?.data as Record<string, unknown> | undefined;
+      if (profile && value?.accountId === id) {
+        const updated = { ...value,
+          ...(data.email !== undefined ? { email: data.email } : {}),
+          ...(data.name !== undefined ? { name: data.name } : {}),
+        };
+        await this.saveMember(linkedId, updated, actor.id);
+      }
+    }
     if (body.status === 'disabled' || body.resetPassword || body.revokeSessions) { await this.prisma.session.deleteMany({ where: { userId: id } }); this.events.kick(id); }
-    if (body.memberId !== undefined) await this.linkMember(id, body.memberId, actor.id);
-    await this.audit(actor.id, 'user_update', id, { ...body, resetPassword: !!body.resetPassword }); return result;
+    await this.audit(actor.id, 'user_update', id, { fields: Object.keys(body || {}).filter((field) => ['name','email','username','role','status','memberId','resetPassword','revokeSessions'].includes(field)), resetPassword: !!body.resetPassword }); return result;
   }
 
   @Get('audit')

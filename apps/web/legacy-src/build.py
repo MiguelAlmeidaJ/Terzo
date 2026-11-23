@@ -7,7 +7,7 @@ import os
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 M=lambda n:open(os.path.join('modulos',n),encoding='utf-8').read()
 src=open('base.html',encoding='utf-8').read()
-mod=M('crm_ap.js')+'\n'+M('crm_v2.js')+'\n'+M('crm_cal.js')+'\n'+M('crm_rel.js')+'\n'+M('crm_ops.js')+'\n'+M('crm_agenda.js')+'\n'+M('crm_modal.js')+'\n'+M('crm_obj.js')+'\n'+M('crm_academy.js')+'\n'+M('crm_meudia.js')+'\n'+M('crm_perm.js')+'\n'+M('crm_calflow.js')+'\n'+M('crm_posting.js')+'\n'+M('crm_clientapproval.js')+'\n'+M('crm_access.js')+'\n'+M('crm_chat2.js')+'\n'+M('crm_layout.js')
+mod=M('crm_ap.js')+'\n'+M('crm_v2.js')+'\n'+M('crm_cal.js')+'\n'+M('crm_rel.js')+'\n'+M('crm_ops.js')+'\n'+M('crm_agenda.js')+'\n'+M('crm_modal.js')+'\n'+M('crm_obj.js')+'\n'+M('crm_academy.js')+'\n'+M('crm_meudia.js')+'\n'+M('crm_perm.js')+'\n'+M('crm_calflow.js')+'\n'+M('crm_posting.js')+'\n'+M('crm_clientapproval.js')+'\n'+M('crm_access.js')+'\n'+M('crm_teamaccounts.js')+'\n'+M('crm_chat2.js')+'\n'+M('crm_layout.js')
 anchor='\ninit();\n})();\n</script>'
 src=src.replace("'<div class=\"note\"><p>Escolha um cliente para gerar sugestões sob medida com IA, usando os objetivos e as observações dele.</p></div>'","''")
 
