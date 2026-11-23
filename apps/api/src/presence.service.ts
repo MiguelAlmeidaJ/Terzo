@@ -4,7 +4,7 @@ import { AccessService } from './access.service';
 import type { User } from '@terzo/database';
 
 const zone='America/Sao_Paulo';
-const day=(date: Date)=>new Intl.DateTimeFormat('en-CA',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}).format(date);
+const day=(date: Date)=>{const parts=new Intl.DateTimeFormat('en-US',{timeZone:zone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(date);const result=Object.fromEntries(parts.filter(p=>p.type!=='literal').map(p=>[p.type,p.value]));return `${result.year}-${result.month}-${result.day}`;};
 const statuses=['online','meeting','visit','capture','lunch','other','ended'] as const;
 type Status=(typeof statuses)[number];
 const working=new Set<string>(['online','meeting','visit','capture']);
@@ -27,12 +27,14 @@ export class PresenceService {
   const at=new Date(),label=day(at);
   return this.prisma.$transaction(async tx=>{
    const previous=await tx.presenceCurrent.findUnique({where:{userId}});
-   if(previous?.status===status&&previous.reason===name[status])return previous;
+   if(previous?.status===status&&previous.reason===name[status]&&previous.day===label)return previous;
    await tx.presenceEvent.create({data:{userId,status,reason:name[status],day:label,at}});
    return tx.presenceCurrent.upsert({where:{userId},create:{userId,status,reason:name[status],day:label,since:at},update:{status,reason:name[status],day:label,since:at}});
   });
  }
  async me(userId:string){
+  const existing=await this.prisma.presenceCurrent.findUnique({where:{userId}});
+  if(existing && existing.day!==day(new Date()) && existing.status!=='ended')await this.set(userId,existing.status as Status,existing.reason);
   const [current,events,lunchMinutes]=await Promise.all([
    this.prisma.presenceCurrent.findUnique({where:{userId}}),
    this.prisma.presenceEvent.findMany({where:{userId,day:day(new Date())},orderBy:{at:'asc'}}),
