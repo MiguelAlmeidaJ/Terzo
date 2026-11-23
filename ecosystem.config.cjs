@@ -19,8 +19,8 @@ function readEnv(file) {
 const env = readEnv(path.join(root, '.env'));
 const value = (key, fallback) => process.env[key] || env[key] || fallback;
 if (!value('DATABASE_URL', '')) throw new Error('DATABASE_URL é obrigatória.');
-const apiPort = value('API_PORT', '3001');
-const webPort = value('WEB_PORT', '3000');
+const apiPort = value('API_PORT', '4003');
+const webPort = value('WEB_PORT', '3003');
 
 module.exports = {
   apps: [
