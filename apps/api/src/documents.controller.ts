@@ -27,6 +27,7 @@ export class DocumentsController {
     if (!this.access.can(user, `${body.coll}/${body.id}`, 'write')) throw new ForbiddenException('permission_denied');
     if (JSON.stringify(body.data).length > 1024 * 1024) throw new BadRequestException('too_large');
     await this.validateSensitiveWrite(user, body.coll, body.id, body.data);
+    await this.validatePortfolioWrite(user, body.coll, body.id, body.data);
     await this.validateNewAssetReferences(user, body.coll, body.id, body.data);
     await this.prisma.document.upsert({
       where: { collection_id: { collection: body.coll, id: body.id } },
@@ -53,6 +54,38 @@ export class DocumentsController {
     if (typeof (deletedMember?.data as any)?.accountId === 'string')
       this.events.kick((deletedMember!.data as any).accountId);
     this.events.broadcast(body.coll, body.id, null); return { ok: true };
+  }
+
+  // 'clients' são documentos JSONB no Terzo. Não existem tabelas SQL client/member;
+  // registra as trocas no mesmo documento para preservar IDs e histórico existente.
+  private async validatePortfolioWrite(user: any, collection: string, id: string, data: Record<string, unknown>) {
+    if (collection !== 'clients') return;
+    const current = await this.prisma.document.findUnique({ where: { collection_id: { collection, id } } });
+    const before = (current?.data || {}) as Record<string, any>;
+    const keys = ['designerId', 'videoEditorId'] as const;
+    const changed = keys.filter((key) => String(data[key] || '') !== String(before[key] || ''));
+    if (changed.length && this.access.level(user) < 3) throw new ForbiddenException('only_admin_can_change_client_owners');
+    // Nunca aceitar histórico escolhido pelo navegador: a API determina quem e quando.
+    if (current && data.ownerHistory !== undefined && JSON.stringify(data.ownerHistory) !== JSON.stringify(before.ownerHistory || []))
+      throw new ForbiddenException('owner_history_is_server_managed');
+    if (!changed.length) return;
+    const actors = await this.prisma.document.findMany({ where: { collection: 'members' } });
+    const active = new Map(actors.map((row) => [row.id, row.data as Record<string, any>]));
+    for (const key of changed) {
+      const target = String(data[key] || '');
+      if (target && (!active.has(target) || active.get(target)?.disabled)) throw new BadRequestException('invalid_or_inactive_client_owner');
+      if (target && key === 'videoEditorId') {
+        const person = active.get(target)!;
+        if (!String(person.area || '').toLowerCase().includes('audiovisual') &&
+            !/otávio|leonardo|bruno/i.test(String(person.name || '')))
+          throw new BadRequestException('video_editor_not_eligible');
+      }
+    }
+    const stamp = new Date().toISOString();
+    data.ownerHistory = [...(Array.isArray(before.ownerHistory) ? before.ownerHistory : []),
+      ...changed.map((key) => ({ role: key === 'designerId' ? 'designer' : 'video_editor',
+        fromId: String(before[key] || ''), toId: String(data[key] || ''),
+        changedBy: user.id, changedAt: stamp }))].slice(-200);
   }
 
   private assetReferences(value: unknown, depth = 0): Set<string> {
