@@ -139,9 +139,18 @@ export class DocumentsController {
       const to = String(data.status || '');
       const changed = to !== from;
       const tracked = ['scheduledFor', 'scheduledBy', 'publishedAt', 'publishedBy'];
-      if (!changed && beforeRow && tracked.some((key) => JSON.stringify(data[key] || '') !== JSON.stringify(before?.[key] || '')))
-        throw new ForbiddenException('publication_fields_are_server_managed');
+      if (beforeRow) {
+        for (const key of tracked) {
+          if (!changed && data[key] !== undefined && JSON.stringify(data[key] || '') !== JSON.stringify(before?.[key] || ''))
+            throw new ForbiddenException('publication_fields_are_server_managed');
+          if (before?.[key] !== undefined && (data[key] === undefined || !changed)) data[key] = before[key];
+        }
+      }
       if (!changed || !['Programado', 'Publicado'].includes(to)) return;
+      if (to === 'Publicado' && from === 'Programado') {
+        data.scheduledFor = before?.scheduledFor;
+        data.scheduledBy = before?.scheduledBy;
+      }
       const member = user.memberId
         ? await this.prisma.document.findUnique({ where: { collection_id: { collection: 'members', id: user.memberId } } })
         : null;
