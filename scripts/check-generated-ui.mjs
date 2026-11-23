@@ -43,4 +43,8 @@ assert.ok(!html.includes("prompt('Qual o motivo desta pausa?')"), 'Presença nã
 assert.ok(html.includes('CLIENTE E RESPONSÁVEIS'), 'Janela de tarefa precisa iniciar com cliente e carteira');
 assert.ok(html.includes('PRIORIDADE E PRAZO'), 'Janela de tarefa precisa incluir bloco de prazo');
 assert.ok(html.includes('INFORMAÇÕES DA TAREFA'), 'Janela de tarefa precisa incluir bloco de informações');
+assert.ok(html.includes('task23DesignerId'), 'Nova tarefa precisa usar a mesma carteira de designers do relacionamento');
+assert.ok(html.includes("relDesigner(client)"), 'Fallback de responsável da carteira precisa ser utilizado');
+assert.ok(html.includes('task23-select-filter'), 'Filtros de selects devem ser discretos e responsivos');
+assert.ok(html.includes('grid-template-columns:minmax(0,1fr)'), 'Formulário deve se adaptar a telas estreitas');
 console.log('Scripts do CRM original e módulos editoriais: sintaxe compilada com sucesso.');
