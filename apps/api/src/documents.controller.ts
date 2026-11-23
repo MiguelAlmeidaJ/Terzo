@@ -105,7 +105,7 @@ export class DocumentsController {
         if (!data.assigneeId || mapped[data.execFor] !== data.assigneeId) throw new BadRequestException('invalid_task_assignee');
         if (!data.title || typeof data.title !== 'string' || data.title.length > 500) throw new BadRequestException('invalid_task_title');
         if (data.editor2Id && data.editor2Id === data.videoEditorId) throw new BadRequestException('duplicate_video_editor');
-        if (data.urgent && !/^\\d{4}-\\d{2}-\\d{2}$/.test(data.due || '')) throw new BadRequestException('urgent_requires_due');
+        if (data.urgent && !/^\d{4}-\d{2}-\d{2}$/.test(data.due || '')) throw new BadRequestException('urgent_requires_due');
         const ids = [data.assigneeId, data.designerId, data.videoEditorId, data.editor2Id, ...(Array.isArray(data.assigneeIds) ? data.assigneeIds : [])].filter(Boolean);
         const members = await this.prisma.document.findMany({ where: { collection: 'members', id: { in: ids } } });
         const active = new Map(members.map((row) => [row.id, row.data as Record<string, any>]));
