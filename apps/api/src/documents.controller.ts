@@ -67,8 +67,11 @@ export class DocumentsController {
     const changed = keys.filter((key) => String(data[key] || '') !== String(before[key] || ''));
     if (changed.length && this.access.level(user) < 3) throw new ForbiddenException('only_admin_can_change_client_owners');
     // Nunca aceitar histórico escolhido pelo navegador: a API determina quem e quando.
-    if (current && data.ownerHistory !== undefined && JSON.stringify(data.ownerHistory) !== JSON.stringify(before.ownerHistory || []))
+    if (data.ownerHistory !== undefined && JSON.stringify(data.ownerHistory) !== JSON.stringify(before.ownerHistory || []))
       throw new ForbiddenException('owner_history_is_server_managed');
+    // Sempre restaurar o histórico do banco, inclusive em edições de outros campos
+    // que partiram de um navegador desatualizado e não enviaram ownerHistory.
+    data.ownerHistory = Array.isArray(before.ownerHistory) ? before.ownerHistory : [];
     if (!changed.length) return;
     const actors = await this.prisma.document.findMany({ where: { collection: 'members' } });
     const active = new Map(actors.map((row) => [row.id, row.data as Record<string, any>]));
