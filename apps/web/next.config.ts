@@ -7,10 +7,10 @@ import path from 'node:path';
 const rootEnvPath = path.resolve(process.cwd(), '../../.env');
 const rootEnv: Record<string,string> = {};
 if (fs.existsSync(rootEnvPath)) {
-  for (const line of fs.readFileSync(rootEnvPath,'utf8').split(/\\r?\\n/)) {
-    const match = line.trim().match(/^([A-Za-z_][A-Za-z0-9_]*)\\s*=\\s*(.*)$/);
+  for (const line of fs.readFileSync(rootEnvPath,'utf8').split(/\r?\n/)) {
+    const match = line.trim().match(/^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
     if (!match) continue;
-    rootEnv[match[1]] = match[2].trim().replace(/^(['"])(.*)\\1$/, '$2');
+    rootEnv[match[1]] = match[2].trim().replace(/^(['"])(.*)\1$/, '$2');
   }
 }
 const api = process.env.API_INTERNAL_URL || rootEnv.API_INTERNAL_URL ||
