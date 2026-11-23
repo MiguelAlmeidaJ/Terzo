@@ -76,7 +76,7 @@ formModal=function(cfg){
  for(const el of [designer,editor,secondary,route])el?.addEventListener('change',()=>{if(el===route)route.dataset.selected=route.value;task23Sync('selection')});
  const kind=document.getElementById('f_categoria');kind?.addEventListener('change',()=>{if(!route.dataset.selected||route.dataset.selected==='outro'){route.dataset.selected=/vídeo|video|reels|audiovisual/i.test(kind.value)?'editor':/arte|design|imagem/i.test(kind.value)?'designer':route.dataset.selected;task23Sync('selection')}});
  task23Sync('selection');
- const fold=x=>String(x||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase();
+ const fold=x=>String(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
  f.querySelectorAll('[data-task23-search]').forEach(search=>search.addEventListener('input',()=>{const q=fold(search.value);search.closest('.task23-people').querySelectorAll('label').forEach(label=>{label.hidden=!fold(label.textContent).includes(q)})}));
  f.querySelectorAll('select').forEach(select=>{
    if(select.options.length<=7||select.id==='f_execFor')return;
