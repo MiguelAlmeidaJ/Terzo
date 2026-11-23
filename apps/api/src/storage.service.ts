@@ -78,7 +78,7 @@ export class StorageService {
 
   async putBrand(body: Buffer) {
     this.requireNextcloud();
-    return this.putRemote(this.remotePath(config.nextcloud.systemFolder, 'terzo-logo.png'), body, 'image/png');
+    return this.putRemote(this.remotePath(config.nextcloud.systemFolder, 'Terzo', 'terzo-logo.png'), body, 'image/png');
   }
 
   async openAsset(id: string, range?: string, storedPath?: string | null): Promise<StoredObject | null> {
@@ -102,7 +102,7 @@ export class StorageService {
 
     // Only use remote storage when the bundled asset is absent.
     if (!this.isNextcloudEnabled()) return null;
-    return this.getRemote(this.remotePath(config.nextcloud.systemFolder, 'terzo-logo.png'));
+    return this.getRemote(this.remotePath(config.nextcloud.systemFolder, 'Terzo', 'terzo-logo.png'));
   }
 
   async deleteAsset(id: string, storedPath?: string | null) {
