@@ -65,6 +65,6 @@ test('Presença: pausa outro exige motivo e transições criam eventos', async (
   await presence.set('u_manager', 'lunch');
   await presence.set('u_manager', 'online');
   assert.deepEqual(events.map(e => e.status), ['online', 'lunch', 'online']);
-  assert.ok(events.every(e => typeof e.day === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/.test(e.day)));
+  assert.ok(events.every(e => typeof e.day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(e.day)));
   assert.ok(events.every(e => e.at instanceof Date));
 });
