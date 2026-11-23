@@ -50,5 +50,8 @@ jobs:
       - name: Build monorepo
         run: pnpm build
 
+      - name: Check generated editorial CRM JavaScript
+        run: pnpm ui:check-generated
+
       - name: Verify original interface and route permissions
         run: pnpm ui:verify

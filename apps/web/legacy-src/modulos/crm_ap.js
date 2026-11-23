@@ -179,7 +179,7 @@ function creativeDetail(id){const draw=()=>{const c=byId('creatives',id);if(!c){
   ${(c.reviews||[]).length?`<div class="sec"><h3>Histórico de aprovação</h3>${apHist(c)}${(c.versions||[]).length?`<p style="font-size:12.5px;color:var(--muted);margin:8px 0 0">Versões anteriores: ${c.versions.map(x=>`<a href="${esc(x.assetId?'/_blob/'+x.assetId:x.link)}" target="_blank" rel="noopener">v${x.round||1}</a>`).join(' · ')}</p>`:''}</div>`:''}
   ${stamp(c)}
  </div>
- <div class="mf"><a class="btn" href="${esc(crUrl(c))}" target="_blank" rel="noopener">Abrir ${k==='link'?'link':'arquivo'} ↗</a><button class="btn" data-act="copy-link" data-id="${id}">Copiar link</button><span class="spacer"></span><button class="btn primary" data-act="edit-creative" data-id="${id}">Editar</button></div>`};
+ <div class="mf"><a class="btn" href="${esc(crUrl(c))}" target="_blank" rel="noopener">Abrir ${k==='link'?'link':'arquivo'} ↗</a><button class="btn" data-act="copy-link" data-id="${id}">Copiar link</button>${caLinkButton('creative',c)}<span class="spacer"></span><button class="btn primary" data-act="edit-creative" data-id="${id}">Editar</button></div>`};
  openModal('',{rerender:draw});draw()}
 
 /* ---------- tela de aprovações ---------- */

@@ -110,6 +110,13 @@ try {
   await expectRedirect('/legacy/admin.html', 'viewer', '/');
   await expectRedirect('/', 'change', '/login');
 
+  // A validação do cliente é pública, mas não pode indexar nem vazar o token em Referer.
+  const external = await call('/aprovacao/' + 'a'.repeat(64));
+  assert.equal(external.status, 200, 'Public approval page must be available without a Terzo session');
+  assert.equal(external.headers.get('referrer-policy'), 'no-referrer');
+  assert.match(external.headers.get('x-robots-tag') || '', /noindex/);
+  assert.ok((await external.text()).includes('Validação de conteúdo'), 'Client approval page was not rendered');
+
   console.log('Original Terzo UI: route rewrites, login, role checks and direct static access passed.');
 } finally {
   proc.kill();

@@ -1,0 +1,18 @@
+import { readFileSync, existsSync } from 'node:fs';
+import { Script } from 'node:vm';
+import assert from 'node:assert/strict';
+import path from 'node:path';
+
+const htmlPath = path.resolve('apps/web/public/legacy/index.html');
+assert.ok(existsSync(htmlPath), 'O HTML original precisa ser gerado antes da verificação');
+const html = readFileSync(htmlPath, 'utf8');
+const inline = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].map(x=>x[1]).filter(x=>x.trim());
+assert.ok(inline.length > 0, 'Nenhum script inline foi encontrado');
+for (let i=0;i<inline.length;i++) new Script(inline[i], { filename: 'legacy-inline-'+i+'.js' });
+assert.ok(html.includes('calPostingPanel(c)'), 'O painel de postagens não foi inserido no calendário');
+assert.ok(html.includes('post-calendar'), 'A grade visual mensal não foi gerada');
+assert.ok(html.includes('post-cell.can-drop'), 'A realocação por drag/drop não foi incluída');
+assert.ok(html.includes('cal-view-tabs'), 'O modal não contém navegação por abas');
+assert.ok(html.includes('caLinkButton('), 'A validação externa não foi inserida na UI');
+assert.ok(html.includes("Dias de postagem por semana"), 'Dias de postagem ausentes no cadastro');
+console.log('Scripts do CRM original e módulos editoriais: sintaxe compilada com sucesso.');
