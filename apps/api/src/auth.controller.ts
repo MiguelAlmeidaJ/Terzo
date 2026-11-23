@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, HttpCode, HttpException, Post, Req, Res, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, HttpCode, HttpException, Inject, Optional, Post, Req, Res, UnauthorizedException } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { hashPassword, sessionCookie, verifyPassword } from './security';
 import { AuthService } from './auth.service';
@@ -12,7 +12,7 @@ const windowMs = 15n * 60n * 1000n;
 
 @Controller('api/auth')
 export class AuthController {
-  constructor(private readonly prisma: PrismaService, private readonly auth: AuthService, private readonly events: EventsService, private readonly presence?: PresenceService) {}
+  constructor(private readonly prisma: PrismaService, private readonly auth: AuthService, private readonly events: EventsService, @Optional() @Inject(PresenceService) private readonly presence?: PresenceService) {}
 
   @Post('login')
   @HttpCode(200)
