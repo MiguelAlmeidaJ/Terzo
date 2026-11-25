@@ -85,16 +85,26 @@ function apSubmitForm(files){const multi=files&&files.length>1;const mm=myMember
  formModal({title:files?(multi?`Enviar ${files.length} peças`:'Enviar peça'):'Enviar peça por link',values:pre,fields,
   onSave:async v=>{if(v.link&&!/^https?:\/\//i.test(v.link)){toast('O link precisa começar com http:// ou https://');throw new Error('link')}
    const ask=v.send!=='nao';const send=v.send;delete v.send;const base={...v,status:ask?'Em aprovação':'Em criação',statusAt:today(),month:pre.month,...(ask?{review:apReq(null)}:{})};
-   const made=[];
+   const made=[];let pendingCount=0;
    if(!files){const id=uid();await put('creatives',id,{...base,createdAt:today(),ts:Date.now()});made.push({id,title:v.title})}
-   else for(let i=0;i<files.length;i++){const f=files[i];toast(`Enviando ${i+1} de ${files.length}…`);
-    try{const r=await assets.upload(f,{clientId:v.clientId});const id=uid();const title=multi?f.name.replace(/\.[^.]+$/,''):v.title;
-     await put('creatives',id,{...base,title,assetId:r.id,contentType:r.contentType,sizeBytes:r.sizeBytes,fileName:f.name,createdAt:today(),ts:Date.now()});made.push({id,title})}
-    catch(e){const m={too_large:'é maior que 20 MB',unsupported_type:'tem um formato não aceito',quota_or_state:'não coube: o espaço da biblioteca acabou',rate_limited:'não foi enviado: muitos envios seguidos, tente em instantes',not_granted:'não foi enviado: seu acesso não permite upload'}[e?.code]||'não foi enviado';toast(`“${f.name}” ${m}.`);await new Promise(r=>setTimeout(r,1800))}}
-   if(!made.length)throw new Error('none');
+   else for(let i=0;i<files.length;i++){
+    const f=files[i];toast(`Salvando ${i+1} de ${files.length}…`);
+    try{
+     const r=await assets.upload(f,{clientId:v.clientId});
+     const id=uid(),title=multi?f.name.replace(/\.[^.]+$/,''):v.title;
+     await put('creatives',id,{...base,title,assetId:r.id,contentType:r.contentType,sizeBytes:r.sizeBytes,fileName:f.name,createdAt:today(),ts:Date.now()});
+     if(r.storageState==='pending')pendingCount++;
+     made.push({id,title});
+    }catch(e){
+     console.error('Falha ao salvar arte para aprovação',e);
+     const message={too_large:'Arquivo grande demais.',unsupported_type:'Formato não aceito.',rate_limited:'Muitos envios seguidos.',permission_denied:'Seu usuário não tem permissão para enviar esta arte.',not_granted:'Seu usuário não tem permissão de upload.',unavailable:'O servidor não respondeu.'}[e?.code]||'Não foi possível salvar o arquivo ou registrar a arte.';
+     toast(`“${f.name}”: ${message}`);
+    }
+   }
+   if(!made.length){toast('Nenhuma arte foi salva. Verifique as permissões ou a conexão e tente novamente.');throw new Error('upload_failed')}
    if(ask)sysPost(`🎨 **${actor()}** pediu aprovação de ${made.length>1?made.length+' peças':'**'+made[0].title+'**'} · ${cName(v.clientId)}. Quem aprova: ${apNames()}.`,{act:made.length>1?'nav':'ap-review',id:made.length>1?'':made[0].id,...(made.length>1?{v:'aprovacoes'}:{})});
    else sysPost(`**${actor()}** subiu ${made.length>1?made.length+' criativos':'o criativo **'+made[0].title+'**'} de **${cName(v.clientId)}** na biblioteca`,{act:'nav',id:'',v:'criativos'});
-   toast(ask?(made.length>1?made.length+' peças enviadas para aprovação':'Peça enviada para aprovação'):(made.length>1?made.length+' criativos guardados':'Criativo guardado'))}});
+   toast((ask?(made.length>1?made.length+' peças enviadas para aprovação':'Peça enviada para aprovação'):(made.length>1?made.length+' criativos guardados':'Criativo guardado'))+(pendingCount?' · Sincronização com Nextcloud pendente.':''))}});
  const mb=$('#modal .mb');if(mb&&files&&!multi&&/^image\//.test(files[0].type)){const u=URL.createObjectURL(files[0]);mb.insertAdjacentHTML('afterbegin',`<div class="ap-art" style="min-height:0"><img src="${u}" alt="" style="max-height:38vh"></div>`)}}
 async function apSend(id){const c=byId('creatives',id);if(!c)return;if(c.status==='Em aprovação'){toast('Esta peça já está aguardando aprovação.');return}
  await put('creatives',id,{...c,status:'Em aprovação',statusAt:today(),review:apReq(c),sentAt:'',sentBy:''});toast('Enviada para aprovação de '+apNames());
