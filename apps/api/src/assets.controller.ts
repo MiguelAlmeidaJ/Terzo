@@ -44,7 +44,7 @@ export class AssetsController {
         storageError: stored.error, lastVerifiedAt: stored.state === 'synced' ? now() : null, createdAt: now(),
       } });
     } catch (error) {
-      await this.storage.deleteAsset(id, stored.remotePath).catch(() => undefined);
+      await this.storage.discardLocalAsset(id).catch(() => undefined);
       throw error;
     }
     return { id, url: `/_blob/${id}`, contentType: mime, sizeBytes: body.length, storageState: stored.state };
