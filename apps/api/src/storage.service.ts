@@ -64,16 +64,18 @@ export class StorageService {
   directoryPath(folder: string) { return this.remotePath(folder); }
   assetPath(folderPath: string, id: string, contentType?: string) { return this.joinRemote(folderPath, this.assetFileName(id, contentType)); }
 
-  async putAsset(id: string, body: Buffer, destination?: string, contentType = 'application/octet-stream'): Promise<StorageWriteResult> {
+  async putAsset(id: string, body: Buffer, _destination?: string, _contentType = 'application/octet-stream'): Promise<StorageWriteResult> {
+    // A durable local copy is the first step. Never block user uploads on WebDAV.
+    // The pending state is persisted in PostgreSQL and retried by reconciliation.
     await this.writeLocal(id, body);
-    if (!this.isNextcloudEnabled()) return { remotePath: null, remoteEtag: null, state: 'local', error: null };
-    const remotePath = destination || this.remotePath(config.nextcloud.systemFolder, this.assetFileName(id, contentType));
-    try {
-      const remoteEtag = await this.putRemote(remotePath, body, contentType);
-      return { remotePath, remoteEtag, state: 'synced', error: null };
-    } catch (error) {
-      return { remotePath: null, remoteEtag: null, state: 'pending', error: this.errorMessage(error) };
-    }
+    return { remotePath: null, remoteEtag: null, state: this.isNextcloudEnabled() ? 'pending' : 'local', error: null };
+  }
+
+  async discardLocalAsset(id: string): Promise<void> {
+    // Only used to roll back a failed metadata insert. No remote request.
+    await fs.unlink(this.localPath(id)).catch((error: any) => {
+      if (error?.code !== 'ENOENT') throw error;
+    });
   }
 
   async putBrand(body: Buffer) {
