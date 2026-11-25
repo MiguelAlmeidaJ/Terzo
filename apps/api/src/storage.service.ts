@@ -84,6 +84,12 @@ export class StorageService {
   }
 
   async openAsset(id: string, range?: string, storedPath?: string | null): Promise<StoredObject | null> {
+    // Locally uploaded assets must remain readable while remote sync is pending.
+    // For byte ranges use remote serving where available, or ordinary local stream.
+    if (!range) {
+      const local = await this.openLocal(this.localPath(id));
+      if (local) return local;
+    }
     let remoteError: unknown;
     if (this.isNextcloudEnabled()) {
       try {
@@ -92,7 +98,7 @@ export class StorageService {
       } catch (error) { remoteError = error; }
     }
     const local = await this.openLocal(this.localPath(id));
-    if (local) return local;
+    if (local && !range) return local;
     if (remoteError) throw remoteError;
     return null;
   }
