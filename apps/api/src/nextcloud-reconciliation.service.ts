@@ -157,7 +157,11 @@ export class NextcloudReconciliationService implements OnModuleInit, OnModuleDes
 
   reconcile(options: ReconcileOptions = {}) {
     if (this.running) return this.running;
-    this.running = this.runReconciliation(options).finally(() => { this.running = undefined; });
+    this.running = (async () => {
+      // Do not run the full reconciliation against a pending upload worker.
+      if (this.pendingRunning) await this.pendingRunning;
+      return this.runReconciliation(options);
+    })().finally(() => { this.running = undefined; });
     return this.running;
   }
 
