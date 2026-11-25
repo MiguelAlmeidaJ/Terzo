@@ -32,11 +32,13 @@ export class NextcloudReconciliationService implements OnModuleInit, OnModuleDes
 
   onModuleInit() {
     const minutes = config.nextcloud.reconcileIntervalMinutes;
-    if (!this.storage.isNextcloudEnabled() || minutes <= 0) return;
-    this.timer = setInterval(() => {
-      void this.reconcile({ source: 'scheduled' }).catch((error) => console.error(JSON.stringify({ level: 'error', event: 'nextcloud_reconcile_failed', error: this.message(error) })));
-    }, minutes * 60_000);
-    this.timer.unref();
+    if (!this.storage.isNextcloudEnabled()) return;
+    if (minutes > 0) {
+      this.timer = setInterval(() => {
+        void this.reconcile({ source: 'scheduled' }).catch((error) => console.error(JSON.stringify({ level: 'error', event: 'nextcloud_reconcile_failed', error: this.message(error) })));
+      }, minutes * 60_000);
+      this.timer.unref();
+    }
     // Independently retry locally persisted uploads, even when folder discovery
     // fails because Nextcloud is temporarily unavailable.
     this.pendingStartup = setTimeout(() => {
