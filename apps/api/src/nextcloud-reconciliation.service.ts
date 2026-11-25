@@ -23,7 +23,10 @@ export const normalizeFolderName = (value: string) => value.normalize('NFD')
 @Injectable()
 export class NextcloudReconciliationService implements OnModuleInit, OnModuleDestroy {
   private timer?: NodeJS.Timeout;
+  private pendingTimer?: NodeJS.Timeout;
+  private pendingStartup?: NodeJS.Timeout;
   private running?: Promise<any>;
+  private pendingRunning?: Promise<void>;
 
   constructor(private readonly prisma: PrismaService, private readonly storage: StorageService) {}
 
@@ -34,9 +37,82 @@ export class NextcloudReconciliationService implements OnModuleInit, OnModuleDes
       void this.reconcile({ source: 'scheduled' }).catch((error) => console.error(JSON.stringify({ level: 'error', event: 'nextcloud_reconcile_failed', error: this.message(error) })));
     }, minutes * 60_000);
     this.timer.unref();
+    // Independently retry locally persisted uploads, even when folder discovery
+    // fails because Nextcloud is temporarily unavailable.
+    this.pendingStartup = setTimeout(() => {
+      void this.syncPendingAssets().catch((error) => console.error(JSON.stringify({
+        level: 'error', event: 'nextcloud_pending_sync_failed', error: this.message(error),
+      })));
+    }, 15_000);
+    this.pendingStartup.unref();
+    this.pendingTimer = setInterval(() => {
+      void this.syncPendingAssets().catch((error) => console.error(JSON.stringify({
+        level: 'error', event: 'nextcloud_pending_sync_failed', error: this.message(error),
+      })));
+    }, 120_000);
+    this.pendingTimer.unref();
   }
 
-  onModuleDestroy() { if (this.timer) clearInterval(this.timer); }
+  onModuleDestroy() {
+    if (this.timer) clearInterval(this.timer);
+    if (this.pendingTimer) clearInterval(this.pendingTimer);
+    if (this.pendingStartup) clearTimeout(this.pendingStartup);
+  }
+
+  /**
+   * Recovery queue backed by PostgreSQL: uploads survive process restarts and
+   * Nextcloud outages. A single worker handles a small batch per run.
+   */
+  syncPendingAssets() {
+    if (this.pendingRunning) return this.pendingRunning;
+    this.pendingRunning = this.processPendingAssets().finally(() => { this.pendingRunning = undefined; });
+    return this.pendingRunning;
+  }
+
+  private async processPendingAssets(): Promise<void> {
+    if (!this.storage.isNextcloudEnabled() || this.running) return;
+    const assets = await this.prisma.asset.findMany({
+      where: { storageState: { in: ['pending', 'error'] } },
+      orderBy: { createdAt: 'asc' },
+      take: 10,
+    });
+    for (const asset of assets) {
+      if (!await this.storage.hasLocalAsset(asset.id)) {
+        await this.prisma.asset.updateMany({
+          where: { id: asset.id, storageState: { in: ['pending', 'error'] } },
+          data: { storageState: 'missing', storageError: 'Cópia local indisponível para sincronização.' },
+        });
+        continue;
+      }
+      const binding = asset.clientId ? await this.prisma.clientStorageBinding.findUnique({
+        where: { clientId: asset.clientId },
+      }) : null;
+      const folder = binding?.status === 'active'
+        ? binding.folderPath : this.storage.directoryPath(config.nextcloud.systemFolder);
+      const destination = this.storage.assetPath(folder, asset.id, asset.mime);
+      try {
+        const result = await this.storage.uploadLocalAsset(asset.id, destination, asset.mime);
+        await this.prisma.asset.updateMany({
+          where: { id: asset.id, storageState: { in: ['pending', 'error'] } },
+          data: {
+            remotePath: result.remotePath, remoteEtag: result.remoteEtag,
+            storageState: 'synced', storageError: null, lastVerifiedAt: now(),
+          },
+        });
+        console.log(JSON.stringify({ level: 'info', event: 'nextcloud_asset_synced', assetId: asset.id }));
+      } catch (error) {
+        await this.prisma.asset.updateMany({
+          where: { id: asset.id, storageState: { in: ['pending', 'error'] } },
+          data: { storageState: 'error', storageError: this.message(error) },
+        });
+        console.warn(JSON.stringify({
+          level: 'warn', event: 'nextcloud_asset_sync_retry', assetId: asset.id, error: this.message(error),
+        }));
+        // When remote storage is unavailable, avoid multiplying slow timeouts.
+        break;
+      }
+    }
+  }
 
   async status() {
     const [bindings, states] = await Promise.all([
